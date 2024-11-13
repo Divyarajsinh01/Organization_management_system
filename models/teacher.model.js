@@ -13,6 +13,8 @@ module.exports = (sequelize, Sequelize) => {
                 key: 'user_id'
             }
         }
+    },{
+        timestamps: false
     })
 
     return Teacher

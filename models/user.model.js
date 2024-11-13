@@ -9,6 +9,9 @@ module.exports = (sequelize, Sequelize) => {
             primaryKey: true,
             autoIncrement: true,
         },
+        name: {
+            type: Sequelize.STRING,
+        },
         profile_image: {
             type: Sequelize.STRING,
         },

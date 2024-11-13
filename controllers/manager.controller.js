@@ -72,9 +72,10 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
 exports.getAllManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
     const managers = await User.findAll({
         where: { role_id: 2 },
+        attributes: {exclude: ['password']},
         include: [{
             model: Manager,
-            attributes: ['timing'],
+            attributes: ['timing', 'manager_id'],
             as: 'manager'
         }]
     })
@@ -82,6 +83,7 @@ exports.getAllManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
     if (managers.length <= 0) {
         return next(new ErrorHandler('managers data is not available!!', 400))
     }
+
 
     res.status(200).json({
         success: true,

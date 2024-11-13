@@ -66,6 +66,12 @@ app.use('/api/v1', standardFeesRouter)
 const testRouter = require('../routers/testSchedule.router')
 app.use('/api/v1', testRouter)
 
+const teacherRouter = require('../routers/teachers.router')
+app.use('/api/v1', teacherRouter)
+
+const lectureRouter = require('../routers/lectures.router')
+app.use('/api/v1', lectureRouter)
+
 const errorMiddleware = require('../middlewares/error')
 app.use(errorMiddleware)
 

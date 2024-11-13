@@ -17,6 +17,10 @@ db.Batch = require('./batch.model')(sequelize, Sequelize)
 db.Organization = require('./organization.model')(sequelize, Sequelize)
 db.StandardFees = require('./standardsFees.model')(sequelize, Sequelize)
 db.Test = require('./testSchedule.model')(sequelize, Sequelize)
+db.Teacher = require('./teacher.model')(sequelize, Sequelize)
+db.TeacherAssignment = require('./teacherAssignment.model')(sequelize, Sequelize)
+db.Lecture = require('./lecture.model')(sequelize, Sequelize)
+db.Student = require('./student.model')(sequelize, Sequelize)
 
 // Define one-to-many associations between user and userRoles model
 db.UserRole.hasMany(db.User, { foreignKey: 'role_id' })
@@ -114,55 +118,140 @@ db.Test.belongsTo(db.Batch, {
     as: 'batches'
 })
 
+//association between user and teacher
+db.User.hasOne(db.Teacher, {
+    foreignKey: 'user_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.Teacher.belongsTo(db.User, {
+    foreignKey: 'user_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+//teacher association with many standard, batches and subjects
+
+db.Teacher.hasMany(db.TeacherAssignment, {
+    foreignKey: 'teacher_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+db.TeacherAssignment.belongsTo(db.Teacher, {
+    foreignKey: 'teacher_id'
+});
+
+// Standard associations (one-to-many)
+db.Standard.hasMany(db.TeacherAssignment, {
+    foreignKey: 'standard_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+db.TeacherAssignment.belongsTo(db.Standard, {
+    foreignKey: 'standard_id'
+});
+
+// Batch associations (one-to-many)
+db.Batch.hasMany(db.TeacherAssignment, {
+    foreignKey: 'batch_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+db.TeacherAssignment.belongsTo(db.Batch, {
+    foreignKey: 'batch_id'
+});
+
+// Subject associations (one-to-many)
+db.Subject.hasMany(db.TeacherAssignment, {
+    foreignKey: 'subject_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+db.TeacherAssignment.belongsTo(db.Subject, {
+    foreignKey: 'subject_id'
+});
+
+// Teacher has many lectures
+db.Teacher.hasMany(db.Lecture, {
+    foreignKey: 'teacher_id',
+    as: 'lectures', // Updated to plural to represent a list of lectures
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+// Standard has many lectures
+db.Standard.hasMany(db.Lecture, {
+    foreignKey: 'standard_id',
+    as: 'lectures', // Updated to plural
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+// Subject has many lectures
+db.Subject.hasMany(db.Lecture, {
+    foreignKey: 'subject_id',
+    as: 'lectures', // Updated to plural
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+// Batch has many lectures
+db.Batch.hasMany(db.Lecture, {
+    foreignKey: 'batch_id',
+    as: 'lectures', // Updated to plural
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+});
+
+// Lecture belongs to associations (without alias)
+db.Lecture.belongsTo(db.Teacher, { foreignKey: 'teacher_id' });
+db.Lecture.belongsTo(db.Standard, { foreignKey: 'standard_id' });
+db.Lecture.belongsTo(db.Subject, { foreignKey: 'subject_id' });
+db.Lecture.belongsTo(db.Batch, { foreignKey: 'batch_id' });
+
+//student associations
+db.User.hasOne(db.Student, {
+    foreignKey: 'user_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.Student.belongsTo(db.User, {foreignKey: 'user_id'})
+
+db.Standard.hasMany(db.Student, {
+    foreignKey: 'standard_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.Student.belongsTo(db.Standard,{
+    foreignKey: 'Standard_id'
+})
+
+db.Batch.hasMany(db.Student, {
+    foreignKey: 'batch_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.Student.belongsTo(db.Batch, {
+    foreignKey: 'batch_id'
+})
+
+db.Organization.hasMany(db.Student, {
+    foreignKey: 'organization_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.Student.belongsTo(db.Organization,{
+    foreignKey: 'organization_id'
+})
+
 module.exports = db
 
-//association function if code is not want
-// const setAssociations = () => {
-
-//     // Define one-to-many associations between user and userRoles model
-//     UserRole.hasMany(User, { foreignKey: 'role_id' })
-//     User.belongsTo(UserRole, { foreignKey: 'role_id', as: 'role', onDelete: 'SET NULL', onUpdate: 'CASCADE' })
-
-//     //  Define one-to-one associations between user and loginToken model
-//     User.hasOne(LoginToken, { foreignKey: 'user_id', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
-//     LoginToken.belongsTo(User, { foreignKey: 'user_id' })
-
-//     // Define one-to-one associations between user and manager model
-//     User.hasOne(Manager, { foreignKey: 'user_id' })
-//     Manager.belongsTo(User, { foreignKey: 'user_id', as: 'manager', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
-
-
-//     // Define many-to-many associations between standard and subject model
-
-//     Standard.belongsToMany(Subject, {
-//         through: standardSubjects,
-//         foreignKey: 'standard_id',
-//         onDelete: 'CASCADE',
-//         onUpdate: 'CASCADE',
-//     });
-
-//     Subject.belongsToMany(Standard, {
-//         through: standardSubjects,
-//         foreignKey: 'subject_id',
-//         onDelete: 'CASCADE',
-//         onUpdate: 'CASCADE',
-//     });
-
-//     //  Define one-to-many associations between batch and standard
-//     // Define one-to-many associations between Standard and Batch
-//     Standard.hasMany(Batch, {
-//         foreignKey: 'standard_id',
-//         as: 'batches', // Alias for accessing related batches
-//         onDelete: 'CASCADE',
-//         onUpdate: 'CASCADE'
-//     });
-
-//     Batch.belongsTo(Standard, {
-//         foreignKey: 'standard_id',
-//         as: 'standard', // Alias for accessing the related standard
-//         onDelete: 'CASCADE',
-//         onUpdate: 'CASCADE'
-//     });
-// };
-
-// module.exports = setAssociations;
