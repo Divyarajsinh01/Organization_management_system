@@ -8,6 +8,7 @@ const removeSensitiveInfo = require("../utils/removeSensitiveInfo"); // Utility 
 const { generateOTP } = require("../utils/generateOTP"); // Utility for generating OTPs
 const { sendOTP } = require("../utils/smsUtility"); // Utility for sending OTPs via SMS
 const ErrorHandler = require("../utils/errorHandler"); // Custom error handler utility
+const cloudinaryUpload = require("../utils/fileUploader");
 
 // Controller for user login
 exports.loginUser = catchAsyncError(async (req, res, next) => {
@@ -197,3 +198,20 @@ exports.resetLoginPassword = catchAsyncError(async (req, res, next) => {
         message: 'Password reset successfully!'
     });
 });
+
+//update useProfile
+
+exports.updateProfilePic = catchAsyncError(async (req, res, next) => {
+    const user = req.user.user_id
+
+    const profile_image = await cloudinaryUpload(req.file.buffer, req.file.mimetype)
+
+    await user.update({
+        profile_image
+    })
+
+    res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+    })
+}) 

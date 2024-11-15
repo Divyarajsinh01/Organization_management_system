@@ -1,3 +1,4 @@
+const { where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const db = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
@@ -35,7 +36,17 @@ exports.addFeesToStandard = catchAsyncError(async (req, res, next) => {
 })
 
 exports.getStandardsFeesList = catchAsyncError(async (req, res, next) => {
+
+    const { standard } = req.body
+
+    const standardWhere = {}
+
+    if(standard){
+        standardWhere.standard = standard
+    }
+
     const standards = await Standard.findAll({
+        where: standardWhere,
         include: [{ 
             model: StandardFees,
             required: true

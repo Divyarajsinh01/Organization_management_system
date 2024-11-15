@@ -21,6 +21,11 @@ db.Teacher = require('./teacher.model')(sequelize, Sequelize)
 db.TeacherAssignment = require('./teacherAssignment.model')(sequelize, Sequelize)
 db.Lecture = require('./lecture.model')(sequelize, Sequelize)
 db.Student = require('./student.model')(sequelize, Sequelize)
+db.StudentResult = require('./studentResult.model')(sequelize,Sequelize)
+db.Holiday = require('./holidays.model')(sequelize,Sequelize)
+db.StudentAttendance = require('./attendance.model')(sequelize, Sequelize)
+db.StudentFees = require('./studentFees.model')(sequelize, Sequelize)
+db.StudentPayment = require('./studentPayment.model')(sequelize, Sequelize)
 
 // Define one-to-many associations between user and userRoles model
 db.UserRole.hasMany(db.User, { foreignKey: 'role_id' })
@@ -230,7 +235,7 @@ db.Standard.hasMany(db.Student, {
 })
 
 db.Student.belongsTo(db.Standard,{
-    foreignKey: 'Standard_id'
+    foreignKey: 'standard_id'
 })
 
 db.Batch.hasMany(db.Student, {
@@ -251,6 +256,65 @@ db.Organization.hasMany(db.Student, {
 
 db.Student.belongsTo(db.Organization,{
     foreignKey: 'organization_id'
+})
+
+//student and test associations
+
+db.Student.hasMany(db.StudentResult,{
+    foreignKey: 'student_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentResult.belongsTo(db.Student, {foreignKey: 'student_id'})
+
+db.Test.hasMany(db.StudentResult,{
+    foreignKey: 'test_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentResult.belongsTo(db.Test, {foreignKey: 'test_id'})
+
+//student and attendance association
+db.Student.hasMany(db.StudentAttendance, {
+    foreignKey: 'student_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.StudentAttendance.belongsTo(db.Student, {
+    foreignKey: 'student_id'
+})
+
+db.Student.hasOne(db.StudentFees, {
+    foreignKey: 'student_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentFees.belongsTo(db.Student,{
+    foreignKey: 'student_id'
+})
+
+db.StandardFees.hasOne(db.StudentFees,{
+    foreignKey: 'fees_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentFees.belongsTo(db.StandardFees, {
+    foreignKey: 'fees_id'
+})
+
+db.StandardFees.hasMany(db.StudentPayment, {
+    foreignKey: 'student_fees_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentPayment.belongsTo(db.StandardFees, {
+    foreignKey: 'student_fees_id'
 })
 
 module.exports = db

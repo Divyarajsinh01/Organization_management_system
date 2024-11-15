@@ -1,6 +1,7 @@
 const express = require('express')
-const { loginUser, logoutUser, changePassword, sendForgotPasswordOtp, verifyOTP, resetLoginPassword } = require('../controllers/auth.controller')
+const { loginUser, logoutUser, changePassword, sendForgotPasswordOtp, verifyOTP, resetLoginPassword, updateProfile, updateProfilePic } = require('../controllers/auth.controller')
 const authMiddleware = require('../middlewares/authMiddleware')
+const { upload } = require('../middlewares/multerMiddleware')
 
 const router = express.Router()
 
@@ -10,5 +11,6 @@ router.route('/change/password').post(authMiddleware, changePassword)
 router.route('/forgot-password/send/otp').post(sendForgotPasswordOtp)
 router.route('/forgot-password/verify/otp').post(verifyOTP)
 router.route('/reset/password').post(resetLoginPassword)
+router.route('/update/profile/image').post(authMiddleware,upload.single('profile_image'), updateProfilePic)
 
 module.exports = router

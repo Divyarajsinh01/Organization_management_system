@@ -107,6 +107,28 @@ exports.scheduleTest = catchAsyncError(async (req, res, next) => {
 })
 
 exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
+
+    const { limit, page, standard_id, batch_id } = req.body;
+
+    let options = {};
+
+    // If 'limit' and 'page' are passed, apply pagination
+    // if (limit && page) {
+    //     const offset = (page - 1) * limit;
+
+    //     options.limit = Number(limit);
+    //     options.offset = offset;
+    // }
+
+    // Add conditions to the where clause
+    if (standard_id) {
+        options.standard_id = standard_id;
+    }
+
+    if (batch_id) {
+        options.batch_id = batch_id;
+    }
+
     // Get the current time in UTC
     const currentTime = moment().format('HH:mm:ss');
     const currentDate = moment().format('YYYY-MM-DD');
@@ -114,6 +136,7 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
     // Fetch all tests, filtering by 'pending', 'completed', and 'marks_not_assign' statuses
     const scheduleTests = await Test.findAll({
         where: {
+            ...options,
             [Op.or]: [
                 // Pending tests: scheduled for a future date
                 {
@@ -175,18 +198,6 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
     // };
 
     // // Separate tests into categories
-
-    // // Separate tests into categories with formatted times
-    // const pendingTests = formatTestTimes(scheduleTests.filter(test => test.startTime > currentTime && test.date >= currentDate && test.status === 'pending'));
-    // const completedTests = formatTestTimes(scheduleTests.filter(test => test.status === 'completed'));
-    // const marksNotAssignedTests = formatTestTimes(scheduleTests.filter(test => test.status === 'marks_not_assign'));
-    // const pastTestsNotCompleted = formatTestTimes(scheduleTests.filter(
-    //     test =>
-    //         test.status !== 'completed' &&
-    //         test.status !== 'marks_not_assign' &&
-    //         (test.date < currentDate || (test.date === currentDate && test.startTime < currentTime))
-    // ));
-
     const pendingTests = scheduleTests.filter(test => test.date > currentDate || (test.startTime > currentTime && test.date === currentDate) && test.status === 'pending');
     const completedTests = scheduleTests.filter(test => test.status === 'completed');
     const marksNotAssignedTests = scheduleTests.filter(test => test.status === 'marks_not_assign');

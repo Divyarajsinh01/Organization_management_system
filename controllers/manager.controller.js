@@ -20,9 +20,17 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
     const randomPassword = generateRandomPassword()
 
     // Check if a super admin with the same email already exists
-    const isManager = await User.findOne({ where: { email, mobileNo } });
+    const isManager = await User.findOne({
+        where: {
+            [Op.or]: [
+                { email },
+                { mobileNo }
+            ]
+        }
+    })
+    
     if (isManager) {
-        return next(new ErrorHandler('This email is already in use!', 400));
+        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
     }
     // console.log(randomPassword)
 
@@ -72,7 +80,7 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
 exports.getAllManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
     const managers = await User.findAll({
         where: { role_id: 2 },
-        attributes: {exclude: ['password']},
+        attributes: { exclude: ['password'] },
         include: [{
             model: Manager,
             attributes: ['timing', 'manager_id'],
@@ -134,7 +142,7 @@ exports.managerUpdateProfile = catchAsyncError(async (req, res, next) => {
     }
 
     await manager.update({
-        profile_image : profileImage || manager.profile_image
+        profile_image: profileImage || manager.profile_image
     })
 
     const managerData = removeSensitiveInfo(manager)
@@ -147,17 +155,17 @@ exports.managerUpdateProfile = catchAsyncError(async (req, res, next) => {
             managerDetails
         }
     })
-}) 
+})
 
-exports.deleteManagers = catchAsyncError(async (req, res,next) => {
+exports.deleteManagers = catchAsyncError(async (req, res, next) => {
     const { manager_id } = req.body
-    
-    if(!manager_id){
+
+    if (!manager_id) {
         return next(new ErrorHandler('Please provide manager id', 400))
     }
 
     const manager = await User.findOne({ where: { user_id: manager_id } })
-    if(!manager){
+    if (!manager) {
         return next(new ErrorHandler('Manager not found!', 404))
     }
 

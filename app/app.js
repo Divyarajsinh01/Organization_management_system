@@ -72,6 +72,21 @@ app.use('/api/v1', teacherRouter)
 const lectureRouter = require('../routers/lectures.router')
 app.use('/api/v1', lectureRouter)
 
+const studentRouter = require('../routers/student.router')
+app.use('/api/v1', studentRouter)
+
+const studentResultsRouter = require('../routers/studentResults.router')
+app.use('/api/v1', studentResultsRouter)
+
+const holidaysRouter = require('../routers/holiday.router')
+app.use('/api/v1', holidaysRouter)
+
+const studentAttendanceRouter = require('../routers/attendance.router')
+app.use('/api/v1', studentAttendanceRouter)
+
+const studentFeesRecordRouter = require('../routers/studentFees.router')
+app.use('/api/v1', studentFeesRecordRouter)
+
 const errorMiddleware = require('../middlewares/error')
 app.use(errorMiddleware)
 
