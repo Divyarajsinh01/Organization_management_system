@@ -1,4 +1,4 @@
-const { Op, where } = require("sequelize");
+const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const { User, sequelize, Standard, Organization, Student, UserRole, Batch } = require('../models');
 const ErrorHandler = require("../utils/errorHandler");
