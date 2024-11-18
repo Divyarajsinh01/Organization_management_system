@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const db = require('../models/index')
 const Manager = db.Manager

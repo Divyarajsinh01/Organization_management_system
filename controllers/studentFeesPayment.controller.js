@@ -1,11 +1,11 @@
-const { StudentFees, StudentPayment, Student, User, Standard, Batch } = require("../models");
+const { StudentFees, StudentPayment, Student, User, Standard, Batch,sequelize, Notification  } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const moment = require("moment");
 const { validateDate } = require("../utils/validation");
 
 exports.studentPayFees = catchAsyncError(async (req, res, next) => {
-    const { student_fees_id, payment_date, payment_amount, new_due_date_days } = req.body; // Optional new_due_date_days
+    const { student_fees_id, payment_date, payment_amount, new_due_date_days } = req.body;
     const user = req.user; // Assuming user role comes from the authentication middleware
 
     // Validate input
@@ -17,72 +17,96 @@ exports.studentPayFees = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("Payment amount must be greater than zero.", 400));
     }
 
-    // Validate date
-    validateDate(payment_date);
-    const formattedPaymentDate = moment(payment_date, "DD/MM/YYYY").format("YYYY-MM-DD");
+    // Start a transaction
+    const transaction = await sequelize.transaction();
+    try {
+        // Validate date
+        validateDate(payment_date);
+        const formattedPaymentDate = moment(payment_date, "DD/MM/YYYY").format("YYYY-MM-DD");
 
-    // Check if student_fees_id exists
-    const studentFees = await StudentFees.findOne({ where: { student_fees_id } });
-    if (!studentFees) {
-        return next(new ErrorHandler(`Student fee record with ID ${student_fees_id} does not exist.`, 404));
-    }
+        // Check if student_fees_id exists
+        const studentFees = await StudentFees.findOne({ where: { student_fees_id } }, { transaction });
+        if (!studentFees) {
+            throw new ErrorHandler(`Student fee record with ID ${student_fees_id} does not exist.`, 404);
+        }
 
-    // Check if payment amount exceeds pending fees
-    if (payment_amount > studentFees.pending_fees) {
-        return next(new ErrorHandler("Payment amount exceeds pending fees.", 400));
-    }
+        // Check if payment amount exceeds pending fees
+        if (payment_amount > studentFees.pending_fees) {
+            throw new ErrorHandler("Payment amount exceeds pending fees.", 400);
+        }
 
-    // Check if payment for the same date already exists
-    const isPaymentAlready = await StudentPayment.findOne({ where: { student_fees_id, payment_date: formattedPaymentDate } });
-    if (isPaymentAlready) {
-        return next(new ErrorHandler("Payment for this date already exists.", 400));
-    }
+        // Check if payment for the same date already exists
+        const isPaymentAlready = await StudentPayment.findOne({ where: { student_fees_id, payment_date: formattedPaymentDate } }, { transaction });
+        if (isPaymentAlready) {
+            throw new ErrorHandler("Payment for this date already exists.", 400);
+        }
 
-    // Determine role-based behavior
-    let paymentStatus = "pending"; // Default status
-    let updatedPendingFees = studentFees.pending_fees;
-    let newDueDate = studentFees.due_date; // Keep current due date unless updated
+        // Determine role-based behavior
+        let paymentStatus = "pending"; // Default status
+        let updatedPendingFees = studentFees.pending_fees;
+        let newDueDate = studentFees.due_date; // Keep current due date unless updated
 
-    if (user.role.role === "Super Admin") {
-        paymentStatus = "approved";
-        updatedPendingFees -= payment_amount; // Deduct payment amount from pending fees
+        if (user.role.role === "Super Admin") {
+            paymentStatus = "approved";
+            updatedPendingFees -= payment_amount; // Deduct payment amount from pending fees
 
-        // Calculate the new due date (default to 30 days from payment date if not provided)
-        const daysToAdd = new_due_date_days || 30; // Default 30 days
-        newDueDate = moment(payment_date, "DD/MM/YYYY").add(daysToAdd, "days").format("YYYY-MM-DD");
-    }
+            // Calculate the new due date (default to 30 days from payment date if not provided)
+            const daysToAdd = new_due_date_days || 30; // Default 30 days
+            newDueDate = moment(payment_date, "DD/MM/YYYY").add(daysToAdd, "days").format("YYYY-MM-DD");
+        }
 
-    // Create payment record
-    const paymentRecord = await StudentPayment.create({
-        student_fees_id,
-        payment_date: formattedPaymentDate,
-        payment_amount,
-        status: paymentStatus,
-    });
+        // Create payment record
+        const paymentRecord = await StudentPayment.create({
+            student_fees_id,
+            payment_date: formattedPaymentDate,
+            payment_amount,
+            status: paymentStatus,
+        }, { transaction });
 
-    // Update pending fees and due date only if payment is approved (by super admin)
-    if (user.role.role === "Super Admin") {
-        await StudentFees.update(
-            {
-                pending_fees: updatedPendingFees,
-                due_date: newDueDate, // Update due date
-                status: updatedPendingFees === 0 ? "fully_paid" : "pending",
-            },
-            { where: { student_fees_id } }
-        );
+        // Update pending fees and due date only if payment is approved (by super admin)
+        if (user.role.role === "Super Admin") {
+            await StudentFees.update(
+                {
+                    pending_fees: updatedPendingFees,
+                    due_date: newDueDate, // Update due date
+                    status: updatedPendingFees === 0 ? "fully_paid" : "pending",
+                },
+                { where: { student_fees_id }, transaction }
+            );
 
-        return res.status(200).json({
-            success: true,
-            message: "Payment successfully processed by Super Admin.",
-            payment: paymentRecord,
-            updated_due_date: newDueDate,
-        });
-    } else if (user.role.role === "Manager") {
-        return res.status(200).json({
-            success: true,
-            message: "Payment request sent to Super Admin for approval.",
-            payment: paymentRecord,
-        });
+            await transaction.commit(); // Commit transaction
+            return res.status(200).json({
+                success: true,
+                message: "Payment successfully processed by Super Admin.",
+                payment: paymentRecord,
+                updated_due_date: newDueDate,
+            });
+        } else if (user.role.role === "Manager") {
+            const superAdmin = await User.findAll({ where: { role_id: 1 } }, { transaction });
+            if (superAdmin.length === 0) {
+                await transaction.rollback(); // Rollback transaction
+                throw new ErrorHandler("No Super Admin found.", 404);
+            }
+
+            for (const admin of superAdmin) {
+                await Notification.create({
+                    user_id: admin.user_id,
+                    notification_type_id: 4,
+                    title: 'Payment request notification',
+                    message: `Payment taken by ${user.name} with amount ${payment_amount}`,
+                }, { transaction });
+            }
+
+            await transaction.commit(); // Commit transaction
+            return res.status(200).json({
+                success: true,
+                message: "Payment request sent to Super Admin for approval.",
+                payment: paymentRecord,
+            });
+        }
+    } catch (error) {
+        await transaction.rollback(); // Rollback transaction in case of error
+        return next(error);
     }
 });
 
