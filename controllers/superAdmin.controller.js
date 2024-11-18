@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const db = require("../models");
 const UserRole = db.UserRole;
