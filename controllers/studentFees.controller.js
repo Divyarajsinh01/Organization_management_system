@@ -1,6 +1,6 @@
-const { where } = require("sequelize");
+const { where, Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { StudentFees, Student, StandardFees } = require("../models"); // Adjust the path as needed
+const { StudentFees, Student, StandardFees, User, Standard, Batch } = require("../models"); // Adjust the path as needed
 const ErrorHandler = require("../utils/errorHandler");
 const { validateDate } = require("../utils/validation");
 const moment = require("moment");
@@ -66,3 +66,62 @@ exports.createStudentFeesRecords = catchAsyncError(async (req, res, next) => {
     });
 });
 
+exports.getStudentFeesRecordList = catchAsyncError(async (req, res, next) => {
+    const {name, standard_id, batch_id, student_id, due_date} = req.body
+
+    const studentWhere = {}
+    const studentFeesWhere = {}
+    const userWhere = {}
+    
+    if(name){
+        userWhere.name = { [Op.like]: `%${name}%`}
+    }
+
+    if(standard_id){
+        studentWhere.standard_id = standard_id
+    }
+
+    if(batch_id){
+        studentFeesWhere.batch_id = batch_id
+    }
+
+    if(student_id){
+        studentWhere.student_id = student_id
+    }
+
+    if(due_date){
+        validateDate(due_date)
+        const dueDateFormatted = moment(due_date, 'DD/MM/YYYY').format('YYYY-MM-DD')
+        studentFeesWhere.due_date = { [Op.lte]: dueDateFormatted }
+    }
+
+    const studentFeesRecords = await Student.findAll({
+        where: studentWhere,
+        include: [
+            {
+                model: User,
+                where: userWhere,
+                attributes: {exclude: ['password']}
+            },
+            {
+                model: Standard,
+            },
+            {model: Batch},
+            {
+                model: StudentFees,
+                where: studentFeesWhere,
+            }
+        ],
+        order: [[StudentFees, 'due_date', 'DESC']]
+    })
+
+    if(studentFeesRecords.length <= 0){
+        return next(new ErrorHandler('No student fees records found', 404))
+    }
+
+    res.status(200).json({
+        status: 'success',
+        message: 'Student fees records retrieved successfully',
+        data: studentFeesRecords
+    })
+})

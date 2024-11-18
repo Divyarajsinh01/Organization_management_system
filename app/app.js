@@ -87,6 +87,9 @@ app.use('/api/v1', studentAttendanceRouter)
 const studentFeesRecordRouter = require('../routers/studentFees.router')
 app.use('/api/v1', studentFeesRecordRouter)
 
+const studentFeesPaymentRouter = require('../routers/studentPayment.router')
+app.use('/api/v1', studentFeesPaymentRouter)
+
 const errorMiddleware = require('../middlewares/error')
 app.use(errorMiddleware)
 

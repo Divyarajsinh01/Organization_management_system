@@ -118,6 +118,75 @@ exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
     })
 })
 
+exports.getLoginStudentAttendance = catchAsyncError(async (req, res, next) => {
+    const { name, student_id, standard_id, batch_id, isAbsent, date } = req.body
+    const user_id = req.user.user_id
+    validateDate(date)
+    const attendanceDate = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD')
+
+    const attendanceWhere = {}
+    const studentWhere = {}
+    const userWhere = {user_id}
+
+    if(name){
+        userWhere.name = { [Op.like]: `%${name}%` }
+    }
+
+    if (student_id) {
+        studentWhere.student_id = student_id
+    }
+
+    if (standard_id) {
+        studentWhere.standard_id = standard_id
+    }
+
+    if (batch_id) {
+        studentWhere.batch_id = batch_id
+    }
+
+    // Ensure isAbsent is boolean and correctly set
+    if (typeof isAbsent !== 'undefined') {
+        attendanceWhere.isAbsent = isAbsent;
+    }
+
+    if(date){
+        attendanceWhere.date = attendanceDate
+    }
+
+
+    const attendanceList = await Student.findAll({
+        where: studentWhere,
+        include: [
+            {
+                model: User,
+                where: userWhere
+            },
+            {
+                model: Standard,
+            },
+            {
+                model: Batch,
+            },
+            {
+                model: StudentAttendance,
+                required: true,
+                where: attendanceWhere,
+            }
+        ],
+        order: [[StudentAttendance, 'date', 'DESC']] // Order applied at the root level
+    })
+
+    if(attendanceList <= 0){
+        return next(new ErrorHandler('No attendance found', 404))
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Student attendance list fetched successfully!',
+        data: attendanceList
+    })
+})
+
 exports.updateAttendance = catchAsyncError(async (req, res, next) => {
     const { attendance_id, isAbsent } = req.body
 

@@ -26,6 +26,8 @@ db.Holiday = require('./holidays.model')(sequelize,Sequelize)
 db.StudentAttendance = require('./attendance.model')(sequelize, Sequelize)
 db.StudentFees = require('./studentFees.model')(sequelize, Sequelize)
 db.StudentPayment = require('./studentPayment.model')(sequelize, Sequelize)
+db.NotificationType = require('./notificationType.model')(sequelize, Sequelize)
+db.Notification = require('./notification.model')(sequelize, Sequelize)
 
 // Define one-to-many associations between user and userRoles model
 db.UserRole.hasMany(db.User, { foreignKey: 'role_id' })
@@ -307,14 +309,34 @@ db.StudentFees.belongsTo(db.StandardFees, {
     foreignKey: 'fees_id'
 })
 
-db.StandardFees.hasMany(db.StudentPayment, {
+db.StudentFees.hasMany(db.StudentPayment, {
     foreignKey: 'student_fees_id',
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE'
 })
 
-db.StudentPayment.belongsTo(db.StandardFees, {
+db.StudentPayment.belongsTo(db.StudentFees, {
     foreignKey: 'student_fees_id'
+})
+
+db.NotificationType.hasMany(db.Notification, {
+    foreignKey: 'notification_type_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.Notification.belongsTo(db.NotificationType, {
+    foreignKey: 'notification_type_id'
+})
+
+db.User.hasMany(db.Notification, {
+    foreignKey: 'user_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.Notification.belongsTo(db.User,{
+    foreignKey: 'user_id'
 })
 
 module.exports = db
