@@ -6,10 +6,14 @@ const User = db.User;
 const ErrorHandler = require("../utils/errorHandler");
 const cloudinaryUpload = require("../utils/fileUploader");
 const removeSensitiveInfo = require("../utils/removeSensitiveInfo");
+const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 // Add Super Admin
 exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
     const { name, email, mobileNo, password, address } = req.body;
+    const role_id = 1; //super admin
+    const role = await UserRole.findOne({ where: {role_id} });
+    if(!role) return next(new ErrorHandler("Role not found", 404));
     let image;
 
     // Upload image to Cloudinary if file is provided
@@ -23,18 +27,21 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
     }
 
     // Check if a super admin with the same email already exists
-    const isSuperAdmin = await User.findOne({
-        where: {
-            [Op.or]: [
-                { email },
-                { mobileNo }
-            ]
-        }
-    })
+    // const isSuperAdmin = await User.findOne({
+    //     where: {
+    //         [Op.or]: [
+    //             { email },
+    //             { mobileNo }
+    //         ]
+    //     }
+    // })
     
-    if (isSuperAdmin) {
-        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    }
+    // if (isSuperAdmin) {
+    //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+    // }
+
+     const login_id = await generateLoginIdWithRandom(role.role, User)
+    //  console.log(login_id)
 
     // Create new super admin with provided data and profile image URL if available
     await User.create({
@@ -43,11 +50,11 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
         mobileNo,
         password,
         address,
-        login_id: email,  // Assign email as login_id
+        login_id,  
         profile_image: image || null
     });
 
-    // Fetch newly created user along with role
+    // // Fetch newly created user along with role
     const user = await User.findOne({
         where: { email },
         include: [{
@@ -109,7 +116,7 @@ exports.getAllSuperAdmins = catchAsyncError(async (req, res, next) => {
 
 // Update Super Admin
 exports.updateSuperAdmin = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, password, address } = req.body;
+    const { name, email, mobileNo, address } = req.body;
     const superAdmin = req.user;  // Fetch current super admin from request
 
     let image;

@@ -3,28 +3,34 @@ const catchAsyncError = require("../middlewares/catchAsyncError");
 const { User, Teacher, TeacherAssignment, Standard, Subject, Batch, sequelize } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const { generateRandomPassword } = require("../utils/generateRandomPassword");
+const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 exports.createTeacher = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, role_id, standardDataWithSubjects } = req.body;
+    const { name, email, mobileNo, address, standardDataWithSubjects } = req.body;
 
-    if (!name || !email || !mobileNo || !address || !role_id || role_id === null) {
+    if (!name || !email || !mobileNo || !address) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
-    const isTeacher = await User.findOne({
-        where: {
-            [Op.or]: [
-                { email },
-                { mobileNo }
-            ]
-        }
-    });
+    const role_id = 3; //super admin
+    const role = await UserRole.findOne({ where: {role_id} });
+    if(!role) return next(new ErrorHandler("Role not found", 404));
 
-    if (isTeacher) {
-        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    }
+    // const isTeacher = await User.findOne({
+    //     where: {
+    //         [Op.or]: [
+    //             { email },
+    //             { mobileNo }
+    //         ]
+    //     }
+    // });
+
+    // if (isTeacher) {
+    //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+    // }
 
     const randomPassword = generateRandomPassword();
+    const login_id = await generateLoginIdWithRandom(role.role, User)
     const transaction = await sequelize.transaction();
 
     try {
@@ -34,7 +40,7 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
             mobileNo,
             password: randomPassword,
             address,
-            login_id: email,
+            login_id,
             role_id
         }, { transaction });
 

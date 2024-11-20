@@ -8,7 +8,7 @@ const router = express.Router()
 
 router.route('/add/super-admins').post(upload.single('profile_image'),addSuperAdmin)
 router.route('/super-admins/profile').get(authMiddleware ,getSuperAdminProfile)
-router.route('/all/super-admins/').get(authMiddleware, roleRestrict('Super Admin'), getAllSuperAdmins)
+router.route('/all/super-admins/').get(authMiddleware, getAllSuperAdmins)
 router.route('/update/super-admins').post(authMiddleware,  upload.single('profile_image'), updateSuperAdmin)
 router.route('/delete/super-admins').delete(authMiddleware, deleteSuperAdmin)
 

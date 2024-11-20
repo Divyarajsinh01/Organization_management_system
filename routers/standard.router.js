@@ -5,9 +5,9 @@ const { addStandard, getAllStandardWithAssociatedSubjects, updateStandard, delet
 
 const router = express.Router()
 
-router.route('/add/standards').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), addStandard)
-router.route('/all/standards').get(authMiddleware,  roleRestrict('Super Admin', 'Manager'), getAllStandardWithAssociatedSubjects)
-router.route('/update/standards').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), updateStandard)
-router.route('/delete/standards').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), deleteStandard)
+router.route('/add/standards').post(authMiddleware, roleRestrict(1,2), addStandard)
+router.route('/all/standards').get(authMiddleware,  roleRestrict(1,2), getAllStandardWithAssociatedSubjects)
+router.route('/update/standards').post(authMiddleware, roleRestrict(1,2), updateStandard)
+router.route('/delete/standards').post(authMiddleware, roleRestrict(1,2), deleteStandard)
 
 module.exports = router

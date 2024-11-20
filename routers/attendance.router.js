@@ -5,9 +5,9 @@ const { createStudentAttendance, getAttendanceList, updateAttendance, getLoginSt
 
 const router = express.Router()
 
-router.route('/fill/students/attendance').post(authMiddleware, roleRestrict('Super Admin', 'Manager', 'Teacher'), createStudentAttendance)
-router.route('/get/students/attendance/list').post(authMiddleware, roleRestrict('Super Admin', 'Manager', 'Teacher'), getAttendanceList)
-router.route('/update/students/attendance').post(authMiddleware, roleRestrict('Super Admin', 'Manager', 'Teacher'), updateAttendance)
+router.route('/fill/students/attendance').post(authMiddleware, roleRestrict(1,2,3), createStudentAttendance)
+router.route('/get/students/attendance/list').post(authMiddleware,roleRestrict(1,2,3), getAttendanceList)
+router.route('/update/students/attendance').post(authMiddleware, roleRestrict(1,2,3), updateAttendance)
 router.route('/students/attendance').post(authMiddleware, getLoginStudentAttendance)
 
 module.exports = router

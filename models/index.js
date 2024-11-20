@@ -339,5 +339,7 @@ db.Notification.belongsTo(db.User,{
     foreignKey: 'user_id'
 })
 
+// sequelize.sync({alter: true})
+
 module.exports = db
 

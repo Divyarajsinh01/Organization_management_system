@@ -5,9 +5,9 @@ const { addFeesToStandard, getStandardsFeesList, updateStandardsFees, deleteStan
 
 const router = express.Router()
 
-router.route('/add/standards/fees').post(authMiddleware, roleRestrict('Super Admin'), addFeesToStandard)
-router.route('/standards/fees/list').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), getStandardsFeesList)
-router.route('/update/standards/fees').post(authMiddleware, roleRestrict('Super Admin'), updateStandardsFees)
-router.route('/delete/standards/fees').post(authMiddleware, roleRestrict('Super Admin'), deleteStandardsFees)
+router.route('/add/standards/fees').post(authMiddleware, roleRestrict(1), addFeesToStandard)
+router.route('/standards/fees/list').post(authMiddleware, roleRestrict(1, 2), getStandardsFeesList)
+router.route('/update/standards/fees').post(authMiddleware, roleRestrict(1), updateStandardsFees)
+router.route('/delete/standards/fees').post(authMiddleware, roleRestrict(1), deleteStandardsFees)
 
 module.exports = router

@@ -5,8 +5,8 @@ const { createTeacher, getTeacherList, getTeacherProfile } = require('../control
 
 const router = express.Router()
 
-router.route('/create/teacher').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), createTeacher)
-router.route('/get/teachers').get(authMiddleware, roleRestrict('Super Admin', 'Manager'), getTeacherList)
+router.route('/create/teacher').post(authMiddleware, roleRestrict(1,2), createTeacher)
+router.route('/get/teachers').get(authMiddleware, roleRestrict(1,2), getTeacherList)
 router.route('/get/teacher/profile').get(authMiddleware, getTeacherProfile)
 
 module.exports = router

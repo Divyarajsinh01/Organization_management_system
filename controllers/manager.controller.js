@@ -1,81 +1,93 @@
 const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const db = require('../models/index')
-const Manager = db.Manager
-const UserRole = db.UserRole
-const User = db.User
+const {Manager, User, UserRole, sequelize} = require('../models')
 const ErrorHandler = require("../utils/errorHandler");
 const cloudinaryUpload = require("../utils/fileUploader");
 const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const removeSensitiveInfo = require("../utils/removeSensitiveInfo");
 const { validateTimeFormat } = require("../utils/validation");
+const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, role_id, timing } = req.body;
+    const { name, email, mobileNo, address, timing } = req.body;
+    const role_id = 2; //super admin
+    const role = await UserRole.findOne({ where: {role_id} });
+    if(!role) return next(new ErrorHandler("Role not found", 404));
 
     // Validate required fields
-    if (!name || !email || !mobileNo || !address || !role_id || role_id === null || !timing) {
+    if (!name || !email || !mobileNo || !address || !timing) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
     const randomPassword = generateRandomPassword()
 
-    // Check if a super admin with the same email already exists
-    const isManager = await User.findOne({
-        where: {
-            [Op.or]: [
-                { email },
-                { mobileNo }
-            ]
-        }
-    })
-    
-    if (isManager) {
-        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    }
-    // console.log(randomPassword)
-
-    // Create new super admin with provided data and profile image URL if available
-    const manager = await User.create({
-        name,
-        email,
-        mobileNo,
-        password: randomPassword,
-        address,
-        login_id: email,  // Assign email as login_id
-        role_id
-    });
+    // Start a transaction
+    const t = await sequelize.transaction();
 
     try {
+        // Check if a super admin with the same email already exists
+        // const isManager = await User.findOne({
+        //     where: {
+        //         [Op.or]: [
+        //             { email },
+        //             { mobileNo }
+        //         ]
+        //     },
+        //     transaction: t  // Pass the transaction object
+        // });
+
+        // if (isManager) {
+        //     // Rollback the transaction if email or mobileNo already exists
+        //     await t.rollback();
+        //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+        // }
+
+        const login_id = await generateLoginIdWithRandom(role.role, User)
+
+        // Create new manager (User)
+        const manager = await User.create({
+            name,
+            email,
+            mobileNo,
+            password: randomPassword,
+            address,
+            login_id,  // Assign email as login_id
+            role_id
+        }, { transaction: t }); // Pass the transaction object
+
+        // Create the Manager record associated with the user
         await Manager.create({
             user_id: manager.user_id,
             timing
-        })
+        }, { transaction: t }); // Pass the transaction object
+
+        // Commit the transaction after both create operations
+        await t.commit();
+
+        // Fetch newly created user along with the role and manager info
+        const user = await User.findOne({
+            where: { email },
+            include: [{
+                model: Manager,
+                as: 'manager'
+            }, {
+                model: UserRole,
+                as: 'role'
+            }]
+        });
+
+        // Respond with success and user data
+        res.status(200).json({
+            success: true,
+            message: 'Manager created successfully',
+            data: { ...user.toJSON(), password: randomPassword } // Password might be sensitive; consider removing it
+        });
+
     } catch (error) {
-        return next(new ErrorHandler(error.message, 400))
+        // If any error occurs, rollback the transaction
+        await t.rollback();
+        return next(new ErrorHandler(error.message, 400));
     }
-
-    // Fetch newly created user along with role
-    const user = await User.findOne({
-        where: { email },
-        include: [{
-            model: Manager,
-            as: 'manager'
-        }, {
-            model: UserRole,
-            as: 'role'
-        }]
-    });
-
-    // Remove sensitive information before sending response
-    // const managerData = removeSensitiveInfo(user);
-
-    // Respond with success and user data
-    res.status(200).json({
-        success: true,
-        message: 'Manager created successfully',
-        data: { ...user.toJSON(), password: randomPassword }
-    });
 })
 
 exports.getAllManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {

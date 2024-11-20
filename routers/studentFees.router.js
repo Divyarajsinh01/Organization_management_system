@@ -5,7 +5,7 @@ const { createStudentFeesRecords, getStudentFeesRecordList } = require('../contr
 
 const router = express.Router()
 
-router.route('/create/student/fees/record').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), createStudentFeesRecords)
-router.route('/get/students/fees/record').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), getStudentFeesRecordList)
+router.route('/create/student/fees/record').post(authMiddleware, roleRestrict(1, 2), createStudentFeesRecords)
+router.route('/get/students/fees/record').post(authMiddleware, roleRestrict(1, 2), getStudentFeesRecordList)
 
 module.exports = router

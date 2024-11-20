@@ -1,5 +1,5 @@
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { Student, StudentResult, Test, Sequelize, User, Subject, Standard, Batch } = require("../models");
+const { Student, StudentResult, Test, Sequelize, User, Subject, Standard, Batch, sequelize, Notification } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const { validateDate } = require("../utils/validation");
 const { Op } = Sequelize;
@@ -22,7 +22,13 @@ const calculateAverageMarks = (students) => {
 };
 
 exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
-    const { studentMarks } = req.body;
+    const { studentMarks, isNotify } = req.body;
+
+    // Start a transaction
+    const transaction = await sequelize.transaction();
+
+    try {
+        const userMessages = []; // Array to collect notification messages
 
     for (const { student_id, test_id, obtained_marks } of studentMarks) {
         // Check if required fields are present
@@ -36,19 +42,39 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
             include: [{
                 model: User
             }]
-        });
+        },{transaction});
         if (!student) {
+            await transaction.rollback();
             return next(new ErrorHandler('Student not found', 404));
         }
 
         // Find the test record
-        const test = await Test.findOne({ where: { test_id } });
+        const test = await Test.findOne({ 
+            where: { test_id },
+            include: [{
+                model: Subject,
+                as: 'subjects'
+            }]
+        },{transaction});
         if (!test) {
+            await transaction.rollback();
             return next(new ErrorHandler('Test not found', 404));
+        }
+
+        // Validate `obtained_marks` against `total_marks`
+        if (obtained_marks > test.marks) {
+            await transaction.rollback();
+            return next(
+                new ErrorHandler(
+                    `Obtained marks (${obtained_marks}) cannot be greater than total marks (${test.total_marks}) for test_id ${test_id}.`,
+                    400
+                )
+            );
         }
 
         // Check if the student's standard and batch match the test's standard and batch
         if (student.standard_id !== test.standard_id || student.batch_id !== test.batch_id) {
+            await transaction.rollback();
             return next(new ErrorHandler('The test does not belong to the same standard and batch as the student', 400));
         }
 
@@ -61,6 +87,7 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
         });
 
         if (existingResult) {
+            await transaction.rollback();
             // If marks are already assigned, skip creating/updating the record
             return next(new ErrorHandler(`Marks for student_id ${student_id} and test_id ${test_id} are already assigned`, 400));
         }
@@ -70,17 +97,38 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
             student_id,
             test_id,
             obtained_marks
-        });
+        },{transaction});
 
         await test.update({
             status: 'completed'
-        })
+        },{transaction})
+
+         // **Prepare notification data if isNotify is true**
+         if (isNotify) {
+            userMessages.push({
+                title: `Marks Message!`,
+                message: `Dear ${student.user.name}, you have scored ${obtained_marks} marks in ${test.subjects.subject_name} on ${test.date}. Keep up the good work!`,
+                user_id: student.user.user_id,
+                notification_type_id: 3
+            });
+        }
     }
+
+    // **Save notifications to the database if isNotify is true**
+    if (isNotify && userMessages.length > 0) {
+        await Notification.bulkCreate(userMessages, {transaction});
+    }
+
+    await transaction.commit()
 
     res.status(200).json({
         success: true,
-        message: "Student marks have been added successfully"
+        message: isNotify ? "Student marks have been added and notifications sent successfully." :"Student marks have been added successfully"
     });
+    } catch (error) {
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 400));
+    }
 });
 
 exports.getStudentMarks = catchAsyncError(async (req, res, next) => {

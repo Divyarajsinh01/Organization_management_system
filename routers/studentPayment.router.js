@@ -5,8 +5,8 @@ const { studentPayFees, getStudentPayFeesList, studentFeesPaymentApproveBySuperA
 
 const router = express.Router()
 
-router.route('/add/student/payment').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), studentPayFees)
-router.route('/students/fees/history').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), getStudentPayFeesList)
-router.route('/student/fees/payment/approve').post(authMiddleware, roleRestrict('Super Admin'), studentFeesPaymentApproveBySuperAdmin)
+router.route('/add/student/payment').post(authMiddleware, roleRestrict(1, 2), studentPayFees)
+router.route('/students/fees/history').post(authMiddleware, roleRestrict(1, 2), getStudentPayFeesList)
+router.route('/student/fees/payment/approve').post(authMiddleware, roleRestrict(1), studentFeesPaymentApproveBySuperAdmin)
 
 module.exports = router

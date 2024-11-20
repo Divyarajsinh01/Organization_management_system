@@ -6,10 +6,10 @@ const { upload } = require('../middlewares/multerMiddleware')
 
 const router = express.Router()
 
-router.route('/add/managers').post(authMiddleware, roleRestrict('Super Admin'), createManagerBySuperAdmin)
-router.route('/all/managers').get(authMiddleware,  roleRestrict('Super Admin'), getAllManagerBySuperAdmin)
-router.route('/managers/profile').get(authMiddleware, roleRestrict('Manager'), getManagerProfile)
-router.route('/update/managers').post(authMiddleware,  roleRestrict('Manager'),upload.single('profile_image'), managerUpdateProfile)
-router.route('/delete/managers').post(authMiddleware, roleRestrict('Super Admin'), deleteManagers)
+router.route('/add/managers').post(authMiddleware, roleRestrict(1), createManagerBySuperAdmin)
+router.route('/all/managers').get(authMiddleware,  roleRestrict(1), getAllManagerBySuperAdmin)
+router.route('/managers/profile').get(authMiddleware, getManagerProfile)
+router.route('/update/managers').post(authMiddleware, upload.single('profile_image'), managerUpdateProfile)
+router.route('/delete/managers').post(authMiddleware, roleRestrict(1), deleteManagers)
 
 module.exports = router

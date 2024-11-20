@@ -5,9 +5,9 @@ const { addSubjects, getAllSubjects, updateSubjects, deleteSubjects } = require(
 
 const router = express.Router()
 
-router.route('/add/subjects').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), addSubjects)
-router.route('/all/subjects').get(authMiddleware, roleRestrict('Super Admin', 'Manager'), getAllSubjects)
-router.route('/update/subjects').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), updateSubjects)
-router.route('/delete/subjects').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), deleteSubjects)
+router.route('/add/subjects').post(authMiddleware, roleRestrict(1,2), addSubjects)
+router.route('/all/subjects').get(authMiddleware, roleRestrict(1,2), getAllSubjects)
+router.route('/update/subjects').post(authMiddleware, roleRestrict(1,2), updateSubjects)
+router.route('/delete/subjects').post(authMiddleware, roleRestrict(1,2), deleteSubjects)
 
 module.exports = router

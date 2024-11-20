@@ -5,9 +5,9 @@ const { createHoliday, getHolidays, updateHoliday, deleteHoliday } = require('..
 
 const router = express.Router()
 
-router.route('/create/holiday').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), createHoliday)
+router.route('/create/holiday').post(authMiddleware, roleRestrict(1,2), createHoliday)
 router.route('/get/holidays').get(authMiddleware, getHolidays)
-router.route('/update/holiday').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), updateHoliday)
-router.route('/delete/holiday').post(authMiddleware, roleRestrict('Super Admin', 'Manager'), deleteHoliday)
+router.route('/update/holiday').post(authMiddleware, roleRestrict(1,2), updateHoliday)
+router.route('/delete/holiday').post(authMiddleware, roleRestrict(1,2), deleteHoliday)
 
 module.exports = router

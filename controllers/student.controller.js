@@ -3,28 +3,34 @@ const catchAsyncError = require("../middlewares/catchAsyncError");
 const { User, sequelize, Standard, Organization, Student, UserRole, Batch } = require('../models');
 const ErrorHandler = require("../utils/errorHandler");
 const { generateRandomPassword } = require("../utils/generateRandomPassword");
+const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 exports.createStudents = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, role_id, standard_id, batch_id, organization_id } = req.body;
+    const { name, email, mobileNo, address, standard_id, batch_id, organization_id } = req.body;
 
-    if (!name || !email || !mobileNo || !address || !role_id || role_id === null || !standard_id || !batch_id || !organization_id) {
+    if (!name || !email || !mobileNo || !address || !standard_id || !batch_id || !organization_id) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
-    const isUser = await User.findOne({
-        where: {
-            [Op.or]: [
-                { email },
-                { mobileNo }
-            ]
-        }
-    })
+    // const isUser = await User.findOne({
+    //     where: {
+    //         [Op.or]: [
+    //             { email },
+    //             { mobileNo }
+    //         ]
+    //     }
+    // })
 
-    if (isUser) {
-        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    }
+    // if (isUser) {
+    //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+    // }
+
+    const role_id = 4; //super admin
+    const role = await UserRole.findOne({ where: { role_id } });
+    if (!role) return next(new ErrorHandler("Role not found", 404));
 
     const randomPassword = generateRandomPassword();
+    const login_id = await generateLoginIdWithRandom(role.role, User)
     const transaction = await sequelize.transaction()
 
     try {
@@ -33,7 +39,7 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
             email,
             mobileNo,
             password: randomPassword,
-            login_id: email,
+            login_id,
             address,
             role_id
         }, { transaction })
@@ -151,7 +157,7 @@ exports.getStudentList = catchAsyncError(async (req, res, next) => {
 
     const userWhere = {}
 
-    if(name){
+    if (name) {
         userWhere.name = { [Op.like]: `%${name}%` }
     }
 
@@ -174,7 +180,7 @@ exports.getStudentList = catchAsyncError(async (req, res, next) => {
 
     // Include associated data (Standard, Batch, Organization)
     options.include = [
-        { model: User, where: userWhere ,attributes: { exclude: ['password'] } },
+        { model: User, where: userWhere, attributes: { exclude: ['password'] } },
         { model: Standard },
         { model: Batch },
         { model: Organization }
@@ -202,3 +208,90 @@ exports.getStudentList = catchAsyncError(async (req, res, next) => {
         pagination
     });
 });
+
+exports.updateStudents = catchAsyncError(async (req, res, next) => {
+    const { user_id, name, email, mobileNo, address, standard_id, batch_id, organization_id } = req.body;
+
+    // if (!name || !email || !mobileNo || !address || !standard_id || !batch_id || !organization_id) {
+    //     return next(new ErrorHandler("Please fill all the fields", 400));
+    // }
+
+    if (!user_id) {
+        return next(new ErrorHandler("User ID is required", 400));
+    }
+
+    const transaction = await sequelize.transaction()
+
+    try {
+        // Find the student record with user_id
+        const student = await Student.findOne({
+            where: { user_id },
+            include: [{ model: User }]  // Including the associated User record
+        });
+
+        if (!student) {
+            await transaction.rollback();
+            return next(new ErrorHandler('Student not found', 404));
+        }
+
+        // If the student is found, find the associated user record
+        const user = student.user;
+
+        // Only update fields that are provided in the request body
+        const updateData = {};
+        if (name) updateData.name = name;
+        if (email) updateData.email = email;
+        if (mobileNo) updateData.mobileNo = mobileNo;
+        if (address) updateData.address = address;
+
+        // Update the user details
+        await user.update(updateData, { transaction });
+
+        if (standard_id) {
+            const isStandard = await Standard.findOne({ where: { standard_id } }, { transaction });
+            if (!isStandard) {
+                await transaction.rollback();
+                return next(new ErrorHandler("Standard not found", 404));
+            }
+
+            // Check if the batch_id has changed
+            if (batch_id) {
+                const isBatch = await isStandard.getBatches({ where: { batch_id } }, { transaction });
+                if (isBatch.length <= 0) {
+                    await transaction.rollback();
+                    return next(new ErrorHandler('Batch is not available for this standard', 400));
+                }
+            }
+        }
+
+        // If a new organization is provided, validate it
+        if (organization_id) {
+            const isOrganization = await Organization.findOne({
+                where: { organization_id }
+            }, { transaction });
+
+            if (!isOrganization) {
+                await transaction.rollback();
+                return next(new ErrorHandler('Organization not found', 404));
+            }
+        }
+
+        // Update student's standard, batch, and organization if they have changed
+        const updatedFields = {};
+        if (standard_id && standard_id !== student.standard_id) updatedFields.standard_id = standard_id;
+        if (batch_id && batch_id !== student.batch_id) updatedFields.batch_id = batch_id;
+        if (organization_id && organization_id !== student.organization_id) updatedFields.organization_id = organization_id;
+
+        await student.update(updatedFields, { transaction });
+        await transaction.commit();
+
+        res.status(200).json({
+            success: true,
+            message: 'Student updated successfully!',
+        })
+
+    } catch (error) {
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 500))
+    }
+})

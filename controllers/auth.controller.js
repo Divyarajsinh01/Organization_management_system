@@ -9,6 +9,7 @@ const { generateOTP } = require("../utils/generateOTP"); // Utility for generati
 const { sendOTP } = require("../utils/smsUtility"); // Utility for sending OTPs via SMS
 const ErrorHandler = require("../utils/errorHandler"); // Custom error handler utility
 const cloudinaryUpload = require("../utils/fileUploader");
+const sendEmail = require("../utils/sendEmail");
 
 // Controller for user login
 exports.loginUser = catchAsyncError(async (req, res, next) => {
@@ -106,23 +107,44 @@ exports.changePassword = catchAsyncError(async (req, res, next) => {
 
 // Controller for sending OTP for forgotten password
 exports.sendForgotPasswordOtp = catchAsyncError(async (req, res, next) => {
-    const { mobileNo } = req.body; // Destructure mobile number from request body
+    const { login_id, mobileNo, email } = req.body; // Destructure mobile number from request body
 
     // Check if mobile number is provided
-    if (!mobileNo) {
-        return next(new ErrorHandler('Mobile number is required!', 400)); // Return error if missing
+    if (!login_id) {
+        return next(new ErrorHandler('login_id is required!', 400)); // Return error if missing
+    }
+
+    if (!mobileNo && !email) {
+        return next(new ErrorHandler('Either mobileNo or email is required!', 400)); // Return error
     }
 
     // Find user based on mobile number
-    const user = await User.findOne({ where: { mobileNo } });
+    const user = await User.findOne({ where: { login_id } });
     if (!user) {
-        return next(new ErrorHandler('Mobile number you provided is not valid or incorrect!', 404)); // Return error if user not found
+        return next(new ErrorHandler('login ID you provided is not valid or incorrect!', 404)); // Return error if user not found
+    }
+
+    // If mobileNo is provided, validate it
+    if (mobileNo && user.mobileNo !== mobileNo) {
+        return next(new ErrorHandler('Mobile number you provided is not valid or incorrect!', 404)); // Mobile number mismatch
+    }
+
+    // If email is provided, validate it
+    if (email && user.email !== email) {
+        return next(new ErrorHandler('Email you provided is not valid or incorrect!', 404)); // Email mismatch
     }
 
     // Generate OTP and create a token containing it
     const otp = generateOTP(1000, 9999);
     const token = generateToken({ id: user.user_id, otp }, '5m'); // Token expires in 5 minutes
-    await sendOTP(otp, mobileNo); // Send the OTP via SMS
+
+    if (mobileNo) {
+        await sendOTP(otp, mobileNo); // Send the OTP via SMS
+    }
+
+    if (email) {
+        await sendEmail(email, 'Your Forgot Password OTP', `Your OTP is ${otp}`); // Send the OTP via email
+    }
 
     // Send success response with the OTP token
     res.status(200).json({
@@ -166,14 +188,14 @@ exports.verifyOTP = catchAsyncError(async (req, res, next) => {
 
 // Controller for resetting login password
 exports.resetLoginPassword = catchAsyncError(async (req, res, next) => {
-    console.log("resetPassword endpoint reached"); // Initial log for debugging
+    // console.log("resetPassword endpoint reached"); // Initial log for debugging
     const { resetToken, new_password } = req.body; // Destructure reset token and new password from request body
-    
+
     // Check if new password is provided
     if (!new_password) {
         return next(new ErrorHandler('Please provide password', 400));
     }
-    
+
     // Check if reset token is provided
     if (!resetToken) {
         return next(new ErrorHandler('Token is required!', 400));
