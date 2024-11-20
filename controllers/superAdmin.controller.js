@@ -56,7 +56,7 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
 
     // // Fetch newly created user along with role
     const user = await User.findOne({
-        where: { email },
+        where: { login_id },
         include: [{
             model: UserRole,
             as: 'role'
