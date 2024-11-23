@@ -21,7 +21,7 @@ module.exports = {
     })
 
     await queryInterface.addIndex('student_attendances', ['date'])
-    await queryInterface.addIndex('student_attendances', ['student_id'])
+    // await queryInterface.addIndex('student_attendances', ['student_id'])
     await queryInterface.addIndex('student_attendances', ['date', 'student_id'])
 
     await queryInterface.addColumn('holidays', 'createdAt', {
@@ -47,7 +47,7 @@ module.exports = {
     await queryInterface.removeColumn('student_attendances', 'updatedAt')
     await queryInterface.removeColumn('student_attendances', 'deletedAt')
     await queryInterface.removeIndex('student_attendances', ['date'])
-    await queryInterface.removeIndex('student_attendances', ['student_id'])
+    // await queryInterface.removeIndex('student_attendances', ['student_id'])
     await queryInterface.removeIndex('student_attendances', ['date', 'student_id'])
     await queryInterface.removeColumn('holidays', 'createdAt')
     await queryInterface.removeColumn('holidays', 'updatedAt')
