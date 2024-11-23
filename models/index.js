@@ -28,6 +28,7 @@ db.StudentFees = require('./studentFees.model')(sequelize, Sequelize)
 db.StudentPayment = require('./studentPayment.model')(sequelize, Sequelize)
 db.NotificationType = require('./notificationType.model')(sequelize, Sequelize)
 db.Notification = require('./notification.model')(sequelize, Sequelize)
+db.SuperAdmin = require('./superAdmin.model')(sequelize, Sequelize)
 
 // Define one-to-many associations between user and userRoles model
 db.UserRole.hasMany(db.User, { foreignKey: 'role_id' })
@@ -337,6 +338,18 @@ db.User.hasMany(db.Notification, {
 
 db.Notification.belongsTo(db.User,{
     foreignKey: 'user_id'
+})
+
+db.User.hasOne(db.SuperAdmin, {
+    foreignKey: 'user_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.SuperAdmin.belongsTo(db.User,{
+    foreignKey: 'user_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
 })
 
 // sequelize.sync({alter: true})

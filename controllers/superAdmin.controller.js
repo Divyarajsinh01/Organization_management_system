@@ -12,8 +12,8 @@ const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
     const { name, email, mobileNo, password, address } = req.body;
     const role_id = 1; //super admin
-    const role = await UserRole.findOne({ where: {role_id} });
-    if(!role) return next(new ErrorHandler("Role not found", 404));
+    const role = await UserRole.findOne({ where: { role_id } });
+    if (!role) return next(new ErrorHandler("Role not found", 404));
     let image;
 
     // Upload image to Cloudinary if file is provided
@@ -35,48 +35,66 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
             ]
         }
     })
-    
+
+    // console.log(Object.getOwnPropertyNames(Object.getPrototypeOf(isSuperAdmin)));
+
     if (isSuperAdmin) {
         return next(new ErrorHandler("This email or mobile number is already in use!", 400));
     }
 
-     const login_id = await generateLoginIdWithRandom(role.role, User)
+    const login_id = await generateLoginIdWithRandom(role.role, User)
     //  console.log(login_id)
 
-    // Create new super admin with provided data and profile image URL if available
-    await User.create({
-        name,
-        email,
-        mobileNo,
-        password,
-        address,
-        login_id,  
-        profile_image: image || null
-    });
+    const transaction = await db.sequelize.transaction()
+    try {
+        // Create new super admin with provided data and profile image URL if available
+        const superAdminUser = await User.create({
+            name,
+            email,
+            mobileNo,
+            password,
+            address,
+            login_id,
+            profile_image: image || null
+        },{transaction});
 
-    // // Fetch newly created user along with role
-    const user = await User.findOne({
-        where: { login_id },
-        include: [{
-            model: UserRole,
-            as: 'role'
-        }]
-    });
+        await superAdminUser.createSuperAdmin({}, {transaction})
 
-    // Remove sensitive information before sending response
-    const superAdminData = removeSensitiveInfo(user);
+        await transaction.commit()
+        // // Fetch newly created user along with role
+        const user = await User.findOne({
+            where: { login_id },
+            include: [{
+                model: UserRole,
+                as: 'role'
+            },{
+                model: db.SuperAdmin,
+                attributes: ['super_admin_id']
+            }]
+        });
 
-    // Respond with success and user data
-    res.status(200).json({
-        success: true,
-        message: 'Super Admin created successfully',
-        data: superAdminData
-    });
+        // Remove sensitive information before sending response
+        const superAdminData = removeSensitiveInfo(user);
+
+        // Respond with success and user data
+        res.status(200).json({
+            success: true,
+            message: 'Super Admin created successfully',
+            data: superAdminData
+        });
+    } catch (error) {
+
+    }
+
 });
 
 // Get Super Admin Profile
 exports.getSuperAdminProfile = catchAsyncError(async (req, res, next) => {
     const superAdmin = req.user;  // Fetch current super admin user from request
+    const superAdminData = await superAdmin.getSuperAdmin({
+        attributes: ['super_admin_id']
+    })
+    // console.log(superAdminData)
 
     // Remove sensitive information from user profile
     const superAdminProfile = removeSensitiveInfo(superAdmin);
@@ -85,7 +103,7 @@ exports.getSuperAdminProfile = catchAsyncError(async (req, res, next) => {
     res.status(200).json({
         success: true,
         message: 'Super Admin profile fetched successfully',
-        data: superAdminProfile
+        data: {...superAdminProfile, super_admin_id : superAdminData.super_admin_id}
     });
 });
 
@@ -96,6 +114,9 @@ exports.getAllSuperAdmins = catchAsyncError(async (req, res, next) => {
         where: { role_id: 1 },
         attributes: { exclude: 'password' },
         include: [{
+            model: db.SuperAdmin,
+            attributes: ['super_admin_id']
+        },{
             model: UserRole,
             as: 'role'
         }]
