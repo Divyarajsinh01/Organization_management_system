@@ -6,9 +6,9 @@ const { upload } = require('../middlewares/multerMiddleware')
 
 const router = express.Router()
 
-router.route('/add/organizations').post(authMiddleware, roleRestrict(1),upload.single('logo'), addOrganizations)
-router.route('/get/organizations').get(authMiddleware, roleRestrict(1), getAllOrganizations)
-router.route('/update/organizations').post(authMiddleware, roleRestrict(1), upload.single('logo'), updateOrganization)
-router.route('/delete/organizations').post(authMiddleware, roleRestrict(1), deleteOrganization)
+router.route('/add/organizations').post(upload.single('logo'), addOrganizations)
+router.route('/get/organizations').get(getAllOrganizations)
+router.route('/update/organizations').post(upload.single('logo'), updateOrganization)
+router.route('/delete/organizations').post(deleteOrganization)
 
 module.exports = router

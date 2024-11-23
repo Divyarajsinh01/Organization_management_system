@@ -1,5 +1,6 @@
+const { where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { Standard, Batch, Student, User, NotificationType, Notification } = require("../models");
+const { Standard, Batch, Student, User, NotificationType, Notification, Test, StudentResult, Subject, sequelize, StudentAttendance } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 
 exports.addNotificationTypes = catchAsyncError(async (req, res, next) => {
@@ -122,48 +123,171 @@ exports.CreateSimpleMessage = catchAsyncError(async (req, res, next) => {
 });
 
 exports.createMarksMessage = catchAsyncError(async (req, res, next) => {
-    const { userData } = req.body;
+    const { userData, test_id } = req.body;
 
-    const userMessages = []
-    for (const user of userData) {
-        const { user_id, name, subject, date, mark } = user
-
-        userMessages.push({
-            title: `Marks Message!`,
-            message: `Dear ${name}, you have scored ${mark} marks in ${subject} on ${date}. Keep up the good work!`,
-            user_id: user_id,
-            notification_type_id: 3
-        })
+    if (!test_id) {
+        return next(new ErrorHandler('Test ID is required.', 400));
     }
 
-    await Notification.bulkCreate(userMessages)
+    const test = await Test.findOne({ where: { test_id } });
+    if (!test) {
+        return next(new ErrorHandler(`Test with ID ${test_id} not found`, 404));
+    }
 
-    res.status(200).json({
-        success: true,
-        message: "marks message sent successfully.",
-    })
+    if (test.isNotificationSent) {
+        return next(new ErrorHandler(`Notification for test with ID ${test_id} has already been sent`, 400))
+    }
+
+    if (userData.length <= 0) {
+        return next(new ErrorHandler('User data is required.', 400));
+    }
+
+    const userMessages = []
+    const transaction = await sequelize.transaction();
+
+    try {
+        for (const user of userData) {
+            const { student_id } = user
+
+            const student = await Student.findOne({
+                where: { student_id },
+                include: [
+                    {
+                        model: User,
+                    },
+                    {
+                        model: StudentResult,
+                        where: { test_id },
+                        include: [
+                            {
+                                model: Test,
+                                include: [
+                                    {
+                                        model: Subject,
+                                        as: 'subjects',
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ],
+                transaction
+            })
+
+            // Ensure student and result exist
+            if (!student) {
+                await transaction.rollback();
+                return next(new ErrorHandler(`Student with ID ${student_id} not found`, 404))
+            }
+
+            const studentResult = student.studentResults[0]; // Assume one result per test
+            const { obtained_marks: mark } = studentResult;
+            const { subject_name: subject } = studentResult.test.subjects;
+            const { date } = studentResult.test;
+
+            // console.log(student)
+
+            userMessages.push({
+                title: `Marks Message!`,
+                message: `Dear ${student.user.name}, you have scored ${mark} marks in ${subject} on ${date}. Keep up the good work!`,
+                user_id: student.user.user_id,
+                notification_type_id: 3
+            })
+        }
+
+        await Notification.bulkCreate(userMessages, { transaction })
+        await Test.update({
+            isNotificationSent: true,
+        }, { where: { test_id }, transaction })
+
+        await transaction.commit()
+
+        res.status(200).json({
+            success: true,
+            message: "marks message sent successfully.",
+            data: userMessages
+        })
+    } catch (error) {
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 400))
+    }
 })
 
 exports.createAttendanceMessage = catchAsyncError(async (req, res, next) => {
     const { userData } = req.body;
     const userMessages = []
-    for (const user of userData) {
-        const { user_id, name, date } = user
+    const transaction = await sequelize.transaction();
+    try {
+        for (const user of userData) {
+            const { student_id, attendance_id } = user
+            if (!student_id) {
+                return next(new ErrorHandler('Student ID is required', 400))
+            }
 
-        userMessages.push({
-            title: `Attendance Message!`,
-            message: `Dear student ${name}, you are absent on ${date}!`,
-            user_id: user_id,
-            notification_type_id: 2
+            if (!attendance_id) {
+                return next(new ErrorHandler('Attendance ID is required', 400))
+            }
+
+            const studentAttendance = await StudentAttendance.findOne({
+                where: { student_id, attendance_id },
+                include: [{
+                    model: Student,
+                    include: [
+                        {
+                            model: User,
+                        }
+                    ]
+                }],
+            })
+
+            if (studentAttendance.isNotificationSent) {
+                await transaction.rollback()
+                return next(new ErrorHandler('Notification already sent for this student', 400))
+            }
+
+            // const student = await Student.findOne({
+            //     where: {student_id},
+            //     include: [{model: User}],
+            //     include: [
+            //         {
+            //             model: StudentAttendance,
+            //             where: {attendance_id},
+            //         }],
+            //     transaction
+            // })
+            // console.log(student)
+
+            if (!studentAttendance) {
+                await transaction.rollback()
+                return next(new ErrorHandler('Student Attendance not found', 404))
+            }
+
+            const { date } = studentAttendance
+            const student = studentAttendance.student
+            const { user_id } = student
+            const { name } = student.user
+
+            userMessages.push({
+                title: `Attendance Message!`,
+                message: `Dear student ${name}, you are absent on ${date}!`,
+                user_id: user_id,
+                notification_type_id: 2
+            })
+
+            await studentAttendance.update({ isNotificationSent: true }, { transaction })
+        }
+
+        await Notification.bulkCreate(userMessages, { transaction })
+        await transaction.commit()
+        res.status(200).json({
+            success: true,
+            message: "Attendance message sent successfully.",
+            data: userMessages
         })
+    } catch (error) {
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 400))
     }
-
-    await Notification.bulkCreate(userMessages)
-
-    res.status(200).json({
-        success: true,
-        message: "Attendance message sent successfully.",
-    })
 })
 
 exports.getNotifications = catchAsyncError(async (req, res, next) => {

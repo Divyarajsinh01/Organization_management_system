@@ -11,7 +11,7 @@ exports.sendOTP = async(otp, number) => {
         const message = await client.messages.create({
             body: `Your OTP is ${otp}`,
             from: process.env.TWILLO_NUMBER,
-            to: `${number}`
+            to: `+91${number}`
         })
 
         // console.log(message.body)

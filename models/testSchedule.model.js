@@ -48,6 +48,10 @@ module.exports = ( sequelize, Sequelize ) => {
             type: Sequelize.INTEGER,
             allowNull: false
         },
+        isNotificationSent: {
+            type: Sequelize.BOOLEAN,
+            defaultValue: false
+        },
         status: {
             type: Sequelize.ENUM,
             values: ['completed', 'pending', 'marks_not_assign'],

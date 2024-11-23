@@ -143,7 +143,7 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
                     startTime: {
                         [Op.gt]: currentTime // Only upcoming tests with future date
                     },
-                    // status: 'pending' // Add status filter for pending
+                    status: 'pending' // Add status filter for pending
                 },
                 // Completed tests: tests with 'completed' status
                 {
@@ -164,7 +164,7 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
                 }
             ]
         },
-        attributes: {exclude: ['standard_id', 'subject_id', 'batch_id']},
+        attributes: { exclude: ['standard_id', 'subject_id', 'batch_id'] },
         include: [
             {
                 model: Standard,
@@ -198,26 +198,61 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
     // };
 
     // // Separate tests into categories
-    const pendingTests = scheduleTests.filter(test => test.date > currentDate || (test.startTime > currentTime && test.date === currentDate) && test.status === 'pending');
-    const completedTests = scheduleTests.filter(test => test.status === 'completed');
-    const marksNotAssignedTests = scheduleTests.filter(test => test.status === 'marks_not_assign');
-    const pastTestsNotCompleted = scheduleTests.filter(
-        test =>
-            test.status !== 'completed' &&
-            test.status !== 'marks_not_assign' &&  // Exclude tests with "marks_not_assign" status
-            (test.date < currentDate || (test.date === currentDate && test.startTime < currentTime))
-    );
+    // const pendingTests = scheduleTests.filter(test => 
+    //     (test.status === 'pending') && 
+    //     (test.date > currentDate || (test.date === currentDate && test.startTime > currentTime))
+    // );
+
+    // const completedTests = scheduleTests.filter(test => test.status === 'completed' && test.isNotificationSent);
+
+    // const marksNotAssignedTests = scheduleTests.filter(test => test.status === 'marks_not_assign');
+
+    // const marksAssignedButMessageNotSent = scheduleTests.filter(test => test.status === 'completed' && !test.isNotificationSent);
+
+    // const pastTestsNotCompleted = scheduleTests.filter(
+    //     test =>
+    //         test.status !== 'completed' &&
+    //         test.status !== 'marks_not_assign' &&  // Exclude tests with "marks_not_assign" status
+    //         (test.date < currentDate || (test.date === currentDate && test.startTime < currentTime))
+    // );
+
+    //categories data
+    // Use reduce to categorize tests dynamically
+    const categories = scheduleTests.reduce((acc, test) => {
+        const currentTime = moment().format('HH:mm:ss');
+        const currentDate = moment().format('YYYY-MM-DD');
+
+        if (test.status === 'pending' && (test.date > currentDate || (test.date === currentDate && test.startTime > currentTime))) {
+            acc.pending.push(test);
+        } else if (test.status === 'marks_not_assign') {
+            acc.markNotAssign.marksNotAssigned.push(test);
+        } else if (test.status === 'completed') {
+            if (test.isNotificationSent) acc.completed.push(test);
+            else acc.markNotAssign.marksMessageNotSent.push(test);
+        } else if (test.date < currentDate || (test.date === currentDate && test.startTime < currentTime)) {
+            acc.pastNotCompleted.push(test);
+        }
+
+        return acc;
+    }, {
+        pending: [],
+        markNotAssign: { marksNotAssigned: [], marksMessageNotSent: [] },
+        completed: [],
+        pastNotCompleted: []
+    });
+
     // Send the categorized tests in the response
     res.status(200).json({
         success: true,
         message: 'Tests data fetched successfully!',
         // scheduleTests
-        data: {
-            pendingTests,
-            marksNotAssignedTests,
-            completedTests,
-            pastTestsNotCompleted // Adding past tests that are not completed
-        }
+        data: Object.entries(categories).map(([status, data]) => ({
+            status,
+            data: Array.isArray(data) ? data : Object.entries(data).map(([subStatus, subData]) => ({
+                status: subStatus,
+                data: subData
+            }))
+        })),
     });
 });
 

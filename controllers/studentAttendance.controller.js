@@ -70,20 +70,23 @@ exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
             }
 
             // If no holiday is found, proceed with creating attendance
-            await StudentAttendance.create({
+            const createdAttendance = await StudentAttendance.create({
                 student_id,
                 date: attendanceDate,
                 isAbsent
             }, { transaction });
 
             // **Prepare notification data if isNotify is true**
-            if (isNotify) {
+            if (isNotify && isAbsent) {
                 userMessages.push({
                     title: `Attendance Message!`,
                     message: `Dear ${student.user.name}, you are absent on ${date}!`,
                     user_id: student.user.user_id,
                     notification_type_id: 3
                 });
+
+                // Update the attendance record to mark notification as sent
+                await createdAttendance.update({ isNotificationSent: true }, { transaction });
             }
         }
 
@@ -105,9 +108,8 @@ exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
-    const { name, student_id, standard_id, batch_id, isAbsent, startDate, endDate } = req.body
-    // validateDate(date)
-    // const attendanceDate = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD')
+    const { name, student_id, standard_id, batch_id, isAbsent, date, startDate, endDate } = req.body
+    
 
     const attendanceWhere = {}
     const studentWhere = {}
@@ -134,9 +136,11 @@ exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
         attendanceWhere.isAbsent = isAbsent;
     }
 
-    // if (date) {
-    //     attendanceWhere.date = attendanceDate
-    // }
+    if (date) {
+        validateDate(date)
+        const attendanceDate = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD')
+        attendanceWhere.date = attendanceDate
+    }
 
     let formattedStartDate
     let formattedEndDate

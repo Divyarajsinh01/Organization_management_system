@@ -44,7 +44,8 @@ module.exports = (sequelize, Sequelize) => {
             defaultValue: 1
         },
     }, {
-        timestamps: false,
+        timestamps: true,
+        paranoid: true,
         hooks: {
             beforeCreate: async (user) => {
                 validEmail(user.email);
@@ -71,6 +72,16 @@ module.exports = (sequelize, Sequelize) => {
                 unique: true,
                 fields: ['login_id'], // Create a unique index on login_id
             },
+            {
+                fields: ['email', 'mobileNo'],
+            },
+            {
+                fields: ['email'],
+            },{
+                fields: ['mobileNo'],
+            },{
+                fields: ['name']
+            }
         ],
     });
     

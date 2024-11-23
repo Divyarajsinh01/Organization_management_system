@@ -26,21 +26,21 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
 
     try {
         // Check if a super admin with the same email already exists
-        // const isManager = await User.findOne({
-        //     where: {
-        //         [Op.or]: [
-        //             { email },
-        //             { mobileNo }
-        //         ]
-        //     },
-        //     transaction: t  // Pass the transaction object
-        // });
+        const isManager = await User.findOne({
+            where: {
+                [Op.or]: [
+                    { email },
+                    { mobileNo }
+                ]
+            },
+            transaction: t  // Pass the transaction object
+        });
 
-        // if (isManager) {
-        //     // Rollback the transaction if email or mobileNo already exists
-        //     await t.rollback();
-        //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-        // }
+        if (isManager) {
+            // Rollback the transaction if email or mobileNo already exists
+            await t.rollback();
+            return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+        }
 
         const login_id = await generateLoginIdWithRandom(role.role, User)
 

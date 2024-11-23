@@ -19,10 +19,22 @@ module.exports = (sequelize, Sequelize) => {
         isAbsent: {
             type: Sequelize.BOOLEAN,
             defaultValue: false
-        }
+        },
+        isNotificationSent: {
+            type: Sequelize.BOOLEAN,
+            defaultValue: false
+        },
     },{
-        timestamps: false,
-        // paranoid: true, // Enable soft delete behavior
+        timestamps: true,
+        paranoid: true, // Enable soft delete behavior
+        indexes: [
+            {
+                fields: ['date']
+            },
+            {
+                fields: ['student_id', 'date']
+            }
+        ]
     })
 
     return StudentAttendance

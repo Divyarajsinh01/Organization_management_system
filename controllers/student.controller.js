@@ -6,24 +6,33 @@ const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 exports.createStudents = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, standard_id, batch_id, organization_id } = req.body;
+    const { name, email, mobileNo, address, standard_id, batch_id, organization_id, wantToProcess } = req.body;
 
     if (!name || !email || !mobileNo || !address || !standard_id || !batch_id || !organization_id) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
-    // const isUser = await User.findOne({
-    //     where: {
-    //         [Op.or]: [
-    //             { email },
-    //             { mobileNo }
-    //         ]
-    //     }
-    // })
+    const isUser = await Student.findAll({
+        include: [
+            {
+                model: User,
+                where: {
+                    [Op.or]: [
+                        { email },
+                        { mobileNo }
+                    ]
+                },
+            },
+            { model: Standard },
+            { model: Batch },
+        ]
+    })
 
-    // if (isUser) {
-    //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    // }
+    // console.log(isUser)
+
+    if (isUser.length > 0 && !wantToProcess) {
+        return next(new ErrorHandler("This email or mobile number is already in use!", 400, isUser));
+    }
 
     const role_id = 4; //super admin
     const role = await UserRole.findOne({ where: { role_id } });

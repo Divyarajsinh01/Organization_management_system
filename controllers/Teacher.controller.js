@@ -16,18 +16,18 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
     const role = await UserRole.findOne({ where: {role_id} });
     if(!role) return next(new ErrorHandler("Role not found", 404));
 
-    // const isTeacher = await User.findOne({
-    //     where: {
-    //         [Op.or]: [
-    //             { email },
-    //             { mobileNo }
-    //         ]
-    //     }
-    // });
+    const isTeacher = await User.findOne({
+        where: {
+            [Op.or]: [
+                { email },
+                { mobileNo }
+            ]
+        }
+    });
 
-    // if (isTeacher) {
-    //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    // }
+    if (isTeacher) {
+        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+    }
 
     const randomPassword = generateRandomPassword();
     const login_id = await generateLoginIdWithRandom(role.role, User)

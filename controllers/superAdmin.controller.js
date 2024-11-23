@@ -27,18 +27,18 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
     }
 
     // Check if a super admin with the same email already exists
-    // const isSuperAdmin = await User.findOne({
-    //     where: {
-    //         [Op.or]: [
-    //             { email },
-    //             { mobileNo }
-    //         ]
-    //     }
-    // })
+    const isSuperAdmin = await User.findOne({
+        where: {
+            [Op.or]: [
+                { email },
+                { mobileNo }
+            ]
+        }
+    })
     
-    // if (isSuperAdmin) {
-    //     return next(new ErrorHandler("This email or mobile number is already in use!", 400));
-    // }
+    if (isSuperAdmin) {
+        return next(new ErrorHandler("This email or mobile number is already in use!", 400));
+    }
 
      const login_id = await generateLoginIdWithRandom(role.role, User)
     //  console.log(login_id)
