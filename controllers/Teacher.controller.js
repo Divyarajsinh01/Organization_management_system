@@ -1,6 +1,6 @@
 const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { User, Teacher, TeacherAssignment, Standard, Subject, Batch, sequelize } = require("../models");
+const { User, Teacher, TeacherAssignment, Standard, Subject, Batch, sequelize, UserRole } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
