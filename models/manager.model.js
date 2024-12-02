@@ -20,7 +20,8 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING
         }
     },{
-        timestamps: false,
+        timestamps: true,
+        paranoid: true,
         hooks: {
             beforeCreate: (manager) => {
                 validateTimeFormat(manager.timing)

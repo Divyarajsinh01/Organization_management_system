@@ -24,7 +24,17 @@ module.exports = (sequelize, Sequelize) => {
             }
         }
     },{
-        timestamps: false,
+        timestamps: true,
+        paranoid: true,
+        indexes: [
+            {
+                // unique: true,
+                fields: ['batch_name']
+            },
+            {
+                fields: ['batch_time']
+            }
+        ],
         hooks: {
             beforeCreate: (batch, options) => {
                 validateTime(batch.batch_time)

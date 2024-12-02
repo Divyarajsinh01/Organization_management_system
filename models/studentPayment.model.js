@@ -27,7 +27,8 @@ module.exports = (sequelize, Sequelize) => {
             defaultValue: 'pending'
         }
     }, {
-        timestamps: false
+        timestamps: true,
+        paranoid: true
     });
 
     return StudentPayments;

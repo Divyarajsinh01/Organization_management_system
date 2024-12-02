@@ -35,7 +35,13 @@ module.exports = (sequelize, Sequelize) => {
             defaultValue: Sequelize.NOW // Set default to the current date and time
         }
     },{
-        timestamps: false
+        timestamps: true,
+        paranoid: true,
+        indexes: [
+            {
+                fields: ['is_read']
+            }
+        ]
     })
 
     return Notification;

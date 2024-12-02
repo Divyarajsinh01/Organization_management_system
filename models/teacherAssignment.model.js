@@ -35,7 +35,8 @@ module.exports = (sequelize, Sequelize) => {
             }
         }
     },{
-        timestamps: false
+        timestamps: true,
+        paranoid: true
     })
 
     return TeacherAssignment

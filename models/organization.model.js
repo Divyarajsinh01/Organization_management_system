@@ -21,7 +21,13 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING
         }
     },{
-        timestamps: false,
+        timestamps: true,
+        paranoid: true,
+        indexes: [
+            {
+                fields: ['organization_name', 'organization_time']
+            }
+        ],        
         hooks: {
             beforeCreate: (organization) => {
                 validateTimeFormat(organization.organization_time)

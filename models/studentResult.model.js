@@ -25,7 +25,8 @@ module.exports = (sequelize, Sequelize) => {
             allowNull: false
         }
     },{
-        timestamps: false
+        timestamps: true,
+        paranoid: true
     })
 
     return StudentResult

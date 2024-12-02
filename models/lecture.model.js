@@ -51,8 +51,20 @@ module.exports = (sequelize, Sequelize) => {
         duration: {
             type: Sequelize.INTEGER,
         }
-    },{
-        timestamps: false,
+    }, {
+        timestamps: true,
+        paranoid: true,
+        indexes: [
+            {
+                fields: ['start_time', 'end_time']
+            },
+            {
+                fields: ['day', 'teacher_id', 'standard_id', 'subject_id', 'batch_id', 'start_time', 'end_time'],
+            },
+            {
+                fields: ['day']
+            }
+        ]
     })
 
     return Lecture

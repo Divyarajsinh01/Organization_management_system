@@ -58,7 +58,8 @@ module.exports = ( sequelize, Sequelize ) => {
             defaultValue: 'pending'
         }
     },{
-        timestamps: false,
+        timestamps: true,
+        paranoid: true,
         indexes: [
             {
                 name: 'test_schedule_index',

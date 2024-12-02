@@ -17,7 +17,8 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.DECIMAL
         }
     },{
-        timestamps: false
+        timestamps: true,
+        paranoid: true
     })
 
     return StandardFees
