@@ -10,8 +10,12 @@ const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 // Add Super Admin
 exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, password, address } = req.body;
+    // request body
+    const { name, email, mobileNo, mobileNo2, password, address, gender } = req.body;
+
     const role_id = 1; //super admin
+
+    // role validation if exist or not
     const role = await UserRole.findOne({ where: { role_id } });
     if (!role) return next(new ErrorHandler("Role not found", 404));
     let image;
@@ -22,14 +26,14 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
     }
 
     // Validate required fields
-    if (!name || !email || !mobileNo || !password || !address) {
+    if (!name || !email || !mobileNo || !password || !address || !gender) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
-    // Check if a super admin with the same email already exists
+    // Check if email or mobile number already exists
     const isSuperAdmin = await User.findOne({
         where: {
-            [Op.or]: [
+            [Op.and]: [
                 { email },
                 { mobileNo }
             ]
@@ -42,6 +46,7 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("This email or mobile number is already in use!", 400));
     }
 
+    // random login id
     const login_id = await generateLoginIdWithRandom(role.role, User)
     //  console.log(login_id)
 
@@ -52,9 +57,11 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
             name,
             email,
             mobileNo,
+            mobileNo2: mobileNo2 || null,
             password,
             address,
             login_id,
+            gender,
             profile_image: image || null
         },{transaction});
 
@@ -83,9 +90,9 @@ exports.addSuperAdmin = catchAsyncError(async (req, res, next) => {
             data: superAdminData
         });
     } catch (error) {
-
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 400));
     }
-
 });
 
 // Get Super Admin Profile

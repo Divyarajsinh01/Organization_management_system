@@ -23,6 +23,14 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.STRING,
             allowNull: false,
         },
+        mobileNo2: {
+            type: Sequelize.STRING,
+            allowNull: true
+        },
+        gender: {
+            type: Sequelize.ENUM('Male', 'Female', 'Other'),
+            allowNull: false
+        },
         login_id: {
             type: Sequelize.STRING,
             allowNull: false,
@@ -52,6 +60,10 @@ module.exports = (sequelize, Sequelize) => {
                 validateMobileNumber(user.mobileNo);
                 validPassword(user.password);
                 user.password = await hashPassword(user.password)
+
+                if(user.mobileNo2){
+                    validateMobileNumber(user.mobileNo2);
+                }
             },
             beforeUpdate: async (user) => {
                 if (user.changed('email')) {

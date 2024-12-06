@@ -399,62 +399,164 @@ exports.getStudentsProgressReport = catchAsyncError(async (req, res, next) => {
 });
 
 exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
-
-    const { student_id, test_id, obtained_marks } = req.body
+    const { student_id, test_id, obtained_marks } = req.body;
 
     // Check if required fields are present
     if (!student_id || !test_id || obtained_marks === undefined) {
         return next(new ErrorHandler('Please fill all the fields', 400));
     }
 
-    // Find the student record
-    const student = await Student.findOne({
-        where: { student_id },
-        include: [{
-            model: User
-        }]
-    });
-    if (!student) {
-        return next(new ErrorHandler('Student not found', 404));
-    }
+    // Start a transaction
+    const transaction = await sequelize.transaction();
 
-    // Find the test record
-    const test = await Test.findOne({ where: { test_id } });
-    if (!test) {
-        return next(new ErrorHandler('Test not found', 404));
-    }
-
-    // Check if the student's standard and batch match the test's standard and batch
-    if (student.standard_id !== test.standard_id || student.batch_id !== test.batch_id) {
-        return next(new ErrorHandler('The test does not belong to the same standard and batch as the student', 400));
-    }
-
-    // Check if the marks entry already exists for this student and test
-    const existingResult = await StudentResult.findOne({
-        where: {
-            student_id,
-            test_id
+    try {
+        // Find the student record
+        const student = await Student.findOne({
+            where: { student_id },
+            include: [{ model: User }],
+            transaction // Include transaction to lock the query
+        });
+        if (!student) {
+            throw new ErrorHandler('Student not found', 404);
         }
-    });
 
-    if (existingResult) {
-        // If marks already exist, update them
-        await existingResult.update({ obtained_marks });
-    } else {
-        return next(new ErrorHandler('Student result not found', 404));
+        // Find the test record
+        const test = await Test.findOne({
+            where: { test_id },
+            include: [{
+                model: Subject,
+                as: 'subjects'
+            }],
+            transaction
+        });
+        if (!test) {
+            throw new ErrorHandler('Test not found', 404);
+        }
+
+        // Validate student's standard and batch against the test
+        if (student.standard_id !== test.standard_id || student.batch_id !== test.batch_id) {
+            throw new ErrorHandler(
+                'The test does not belong to the same standard and batch as the student',
+                400
+            );
+        }
+
+        // Check if the marks entry already exists for this student and test
+        const existingResult = await StudentResult.findOne({
+            where: {
+                student_id,
+                test_id
+            },
+            transaction
+        });
+        if (!existingResult) {
+            throw new ErrorHandler('Student result not found', 404);
+        }
+
+        // Update the existing result
+        await existingResult.update({ obtained_marks }, { transaction });
+
+        // Create a notification object (if applicable, save it or send it)
+        const notification = {
+            title: `Mark updated Message!`,
+            message: `Dear ${student.user.name}, your marks for the test held on ${test.date} in ${test.subjects.subject_name} have been updated to ${obtained_marks}. Keep up the good work!`,
+            user_id: student.user.user_id,
+            notification_type_id: 3
+        };
+
+        // You can save the notification here if required:
+        await Notification.create(notification, { transaction });
+
+        // Optionally, update the test status
+        await test.update({ status: 'completed' }, { transaction });
+
+        // Commit the transaction
+        await transaction.commit();
+
+        // Send the response
+        res.status(200).json({
+            success: true,
+            message: 'Student marks have been updated successfully'
+        });
+    } catch (error) {
+        // Rollback the transaction on any error
+        await transaction.rollback();
+
+        // Pass the error to the error-handling middleware
+        return next(error instanceof ErrorHandler ? error : new ErrorHandler(error.message, 500));
     }
-
-    // Optionally, mark the test as completed if all results are submitted
-    await test.update({
-        status: 'completed'
-    });
-
-
-    res.status(200).json({
-        success: true,
-        message: "Student marks have been updated successfully"
-    });
 });
+
+
+// exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
+
+//     const { student_id, test_id, obtained_marks } = req.body
+
+//     // Check if required fields are present
+//     if (!student_id || !test_id || obtained_marks === undefined) {
+//         return next(new ErrorHandler('Please fill all the fields', 400));
+//     }
+
+//     // Find the student record
+//     const student = await Student.findOne({
+//         where: { student_id },
+//         include: [{
+//             model: User
+//         }]
+//     });
+//     if (!student) {
+//         return next(new ErrorHandler('Student not found', 404));
+//     }
+
+//     // Find the test record
+//     const test = await Test.findOne({ where: { test_id } });
+//     if (!test) {
+//         return next(new ErrorHandler('Test not found', 404));
+//     }
+
+//     // Check if the student's standard and batch match the test's standard and batch
+//     if (student.standard_id !== test.standard_id || student.batch_id !== test.batch_id) {
+//         return next(new ErrorHandler('The test does not belong to the same standard and batch as the student', 400));
+//     }
+
+//     // Check if the marks entry already exists for this student and test
+//     const existingResult = await StudentResult.findOne({
+//         where: {
+//             student_id,
+//             test_id
+//         }
+//     });
+
+//     if (!existingResult) {
+//         // If marks already not exist
+//         return next(new ErrorHandler('Student result not found', 404));
+//     }
+
+//     const transaction = await sequelize.transaction()
+//     try {
+//         await existingResult.update({ obtained_marks }, { transaction });
+//         const notification = {
+//             title: `Mark updated Message!`,
+//             message: `Dear ${student.user.name}, your marks for the test held on ${test.date} in ${test.subjects.subject_name} have been updated to ${obtained_marks}. Keep up the good work!`,
+//             user_id: student.user.user_id,
+//             notification_type_id: 3
+//         }
+
+//         // Optionally, mark the test as completed if all results are submitted
+//         await test.update({
+//             status: 'completed'
+//         });
+
+
+//         res.status(200).json({
+//             success: true,
+//             message: "Student marks have been updated successfully"
+//         });
+//     } catch (error) {
+//         await transaction.rollback()
+//         return next(new ErrorHandler(error.message, 500));
+//     }
+// });
 
 
 

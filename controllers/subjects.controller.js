@@ -4,33 +4,70 @@ const Subject = db.Subject;
 const ErrorHandler = require("../utils/errorHandler");
 
 exports.addSubjects = catchAsyncError(async(req, res, next) => {
-    const { subject_name} = req.body;
+    const { standard_id, subjects } = req.body;
 
-    if(!subject_name){
-        return next(new ErrorHandler('please provide subject_name', 400))
+    if(!standard_id){
+        return next(new ErrorHandler('please provide standard', 400))
     }
 
-    const isSubject = await Subject.findOne({
-        where: {subject_name}    
-    })
+    //subjects find and validation
 
-    if(isSubject) {
-        return next(new ErrorHandler('subject already exists', 400))
+    // const isSubject = await Subject.findOne({
+    //     where: {subject_name}    
+    // })
+
+    // if(isSubject) {
+    //     return next(new ErrorHandler('subject already exists', 400))
+    // }
+
+    // create subject
+
+    // const subject = await Subject.create({
+    //     subject_name
+    // })
+
+    if (!subjects || !Array.isArray(subjects) || subjects.length === 0) {
+        return next(new ErrorHandler('Please provide subjects!', 400));
     }
 
-    const subject = await Subject.create({
-        subject_name
-    })
+    const isStandard = await db.Standard.findOne({ where: { standard_id } })
 
-    res.status(200).json({
-        success: true,
-        message: 'Subject added successfully',
-        data: subject
-    })
+    if (!isStandard) {
+        return next(new ErrorHandler('standard not found!', 400))
+    }
+
+    const transaction = await db.sequelize.transaction()
+
+    try {
+        const subjectData = subjects.map(subject => ({
+            standard_id,
+            subject_name: subject.subject_name,  // Name of the subject
+        }));
+        // console.log(Object.keys(isStandard.__proto__));
+        const subjectsData = await Subject.bulkCreate(subjectData, {transaction})
+
+        await transaction.commit()
+
+        res.status(200).json({
+            success: true,
+            message: 'subjects added successfully',
+            data : subjectsData
+        })
+        
+    } catch (error) {
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 500))
+    }
 })
 
 exports.getAllSubjects = catchAsyncError(async (req, res, next) => {
-    const subjects = await Subject.findAll()
+    const {standard_id} = req.query
+
+    const subjectWhere = {}
+    if (standard_id) {
+        subjectWhere.standard_id = standard_id
+    }
+    const subjects = await Subject.findAll({where: subjectWhere})
     if(subjects.length <= 0){
         return next(new ErrorHandler('Subjects data not available!', 400))
     }

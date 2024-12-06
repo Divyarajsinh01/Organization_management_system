@@ -12,7 +12,7 @@ db.LoginToken = require('./loginToken.model')(sequelize, Sequelize)
 db.Manager = require('./manager.model')(sequelize, Sequelize)
 db.Subject = require('./subjects.model')(sequelize, Sequelize)
 db.Standard = require('./standards.model')(sequelize, Sequelize)
-db.standardSubjects = require('./standardSubjects.model')(sequelize, Sequelize)
+// db.standardSubjects = require('./standardSubjects.model')(sequelize, Sequelize)
 db.Batch = require('./batch.model')(sequelize, Sequelize)
 db.Organization = require('./organization.model')(sequelize, Sequelize)
 db.StandardFees = require('./standardsFees.model')(sequelize, Sequelize)
@@ -42,22 +42,35 @@ db.LoginToken.belongsTo(db.User, { foreignKey: 'user_id' })
 db.User.hasOne(db.Manager, { foreignKey: 'user_id' })
 db.Manager.belongsTo(db.User, { foreignKey: 'user_id', as: 'manager', onDelete: 'CASCADE', onUpdate: 'CASCADE' })
 
-
-// Define many-to-many associations between standard and subject model
-
-db.Standard.belongsToMany(db.Subject, {
-    through: db.standardSubjects,
+// Define one-to-many associations between standard and subjects
+db.Standard.hasMany(db.Subject, {
     foreignKey: 'standard_id',
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
-});
+})
 
-db.Subject.belongsToMany(db.Standard, {
-    through: db.standardSubjects,
-    foreignKey: 'subject_id',
+db.Subject.belongsTo(db.Standard, {
+    foreignKey: 'standard_id',
+    as: 'standard',
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
-});
+})
+
+// Define many-to-many associations between standard and subject model
+
+// db.Standard.belongsToMany(db.Subject, {
+//     through: db.standardSubjects,
+//     foreignKey: 'standard_id',
+//     onDelete: 'CASCADE',
+//     onUpdate: 'CASCADE',
+// });
+
+// db.Subject.belongsToMany(db.Standard, {
+//     through: db.standardSubjects,
+//     foreignKey: 'subject_id',
+//     onDelete: 'CASCADE',
+//     onUpdate: 'CASCADE',
+// });
 
 //  Define one-to-many associations between batch and standard
 // Define one-to-many associations between Standard and Batch

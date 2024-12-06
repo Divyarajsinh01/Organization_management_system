@@ -6,6 +6,10 @@ module.exports = (sequelize, Sequelize) => {
             autoIncrement: true,
             unique: true
         },
+        DOB: {
+            type: Sequelize.DATEONLY,
+            allowNull: false
+        },
         user_id: {
             type: Sequelize.INTEGER,
             references: {

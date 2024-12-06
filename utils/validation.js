@@ -26,7 +26,7 @@ exports.validPassword = (password) => {
     return password;
 };
 
-
+//validate time formate
 exports.validateTimeFormat = (timeRange) => {
     const [startTime, endTime] = timeRange.split(' - ');
 
@@ -39,10 +39,11 @@ exports.validateTimeFormat = (timeRange) => {
     }
 };
 
+// validate time hh:mm am/pm formate
 exports.validateTime = (time) => {
     const isValidTime = moment(time.trim(), 'hh:mm A', true).isValid();
     if (!isValidTime) {
-        throw new Error('Time must be in the format "h:mm AM/PM"');
+        throw new Error('Time must be in the format "hh:mm AM/PM"');
     }
 }
 

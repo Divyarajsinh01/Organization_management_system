@@ -48,9 +48,9 @@ module.exports = (sequelize, Sequelize) => {
         end_time: {
             type: Sequelize.TIME
         },
-        duration: {
-            type: Sequelize.INTEGER,
-        }
+        // duration: {
+        //     type: Sequelize.INTEGER,
+        // }
     }, {
         timestamps: true,
         paranoid: true,

@@ -6,31 +6,42 @@ const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 exports.createTeacher = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, standardDataWithSubjects } = req.body;
+    // request body
+    const { name, email, mobileNo, address, mobileNo2, gender, standardDataWithSubjects } = req.body;
 
-    if (!name || !email || !mobileNo || !address) {
+    // validation for all empty fields
+    if (!name || !email || !mobileNo || !address || !gender) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
-    const role_id = 3; //super admin
-    const role = await UserRole.findOne({ where: {role_id} });
-    if(!role) return next(new ErrorHandler("Role not found", 404));
+    const role_id = 3; //Teacher default role id
 
+    // role validation if exist on role table
+    const role = await UserRole.findOne({ where: { role_id } });
+    if (!role) return next(new ErrorHandler("Role not found", 404));
+
+    // check if email or mobile number already exist
     const isTeacher = await User.findOne({
         where: {
-            [Op.or]: [
+            [Op.and]: [
                 { email },
                 { mobileNo }
             ]
         }
     });
 
+    // if user already exist
     if (isTeacher) {
         return next(new ErrorHandler("This email or mobile number is already in use!", 400));
     }
 
-    const randomPassword = generateRandomPassword();
+    // generate random password
+    // const randomPassword = generateRandomPassword();
+
+    //random login id
     const login_id = await generateLoginIdWithRandom(role.role, User)
+
+    // transaction start
     const transaction = await sequelize.transaction();
 
     try {
@@ -38,7 +49,9 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
             name,
             email,
             mobileNo,
-            password: randomPassword,
+            mobileNo2: mobileNo2 || null,
+            gender,
+            password: 'Teacher@123', // default pass
             address,
             login_id,
             role_id
@@ -133,7 +146,6 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
             user_id: createdTeacher.user.user_id,
             name: createdTeacher.user.name,
             email: createdTeacher.user.email,
-            password: randomPassword,
             login_id: createdTeacher.user.login_id,
             mobileNo: createdTeacher.user.mobileNo,
             address: createdTeacher.user.address,
@@ -158,7 +170,8 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
                 standardsMap[standard.standard_id].batches[batch.batch_id] = {
                     batch_id: batch.batch_id,
                     batch_name: batch.batch_name,
-                    batch_time: batch.batch_time,
+                    batch_start_time: batch.batch_start_time,
+                    batch_end_time: batch.batch_end_time,
                     subjects: []
                 };
             }
@@ -235,7 +248,8 @@ exports.getTeacherList = catchAsyncError(async (req, res, next) => {
                 standardsMap[standard.standard_id].batches[batch.batch_id] = {
                     batch_id: batch.batch_id,
                     batch_name: batch.batch_name,
-                    batch_time: batch.batch_time,
+                    batch_start_time: batch.batch_start_time,
+                    batch_end_time: batch.batch_end_time,
                     subjects: []
                 };
             }
@@ -319,7 +333,8 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
             standardsMap[standard.standard_id].batches[batch.batch_id] = {
                 batch_id: batch.batch_id,
                 batch_name: batch.batch_name,
-                batch_time: batch.batch_time,
+                batch_start_time: batch.batch_start_time,
+                batch_end_time: batch.batch_end_time,
                 subjects: []
             };
         }
@@ -346,12 +361,12 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
 exports.teacherUpdateByManager = catchAsyncError(async (req, res, next) => {
     const { teacher_id, addAssignments, removeAssignments } = req.body;
 
-    if(!teacher_id){
+    if (!teacher_id) {
         return next(new ErrorHandler('Please provide teacher id!'))
     }
 
-    const teacher =  await Teacher.findOne({where: {teacher_id}})
-    if(!teacher){
+    const teacher = await Teacher.findOne({ where: { teacher_id } })
+    if (!teacher) {
         return next(new ErrorHandler('Teacher not found!'))
     }
 
@@ -365,7 +380,7 @@ exports.teacherUpdateByManager = catchAsyncError(async (req, res, next) => {
                 subject_id,
                 batch_id
             }));
-            
+
             // Bulk insert new assignments
             await TeacherAssignment.bulkCreate(newAssignments, { transaction });
         }
@@ -378,7 +393,7 @@ exports.teacherUpdateByManager = catchAsyncError(async (req, res, next) => {
                 subject_id,
                 batch_id
             }));
-            
+
             // Delete specified assignments
             await TeacherAssignment.destroy({
                 where: {

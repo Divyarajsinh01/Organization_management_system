@@ -6,15 +6,16 @@ const ErrorHandler = require("../utils/errorHandler");
 const moment = require("moment");
 
 exports.createLectures = catchAsyncError(async (req, res, next) => {
-    const { day, start_time, duration, teacher_id, standard_id, batch_id, subject_id } = req.body;
+    const { day, start_time, end_time, teacher_id, standard_id, batch_id, subject_id } = req.body;
 
     // Basic validation for required fields
-    if (!day || !start_time || !duration || !teacher_id || !standard_id || !batch_id || !subject_id) {
+    if (!day || !start_time || !end_time || !teacher_id || !standard_id || !batch_id || !subject_id) {
         return res.status(400).json({ message: 'All fields are required.' });
     }
 
     validateTime(start_time);
-    const durationInMinutes = validateDuration(duration);
+    validateTime(end_time)
+    // const durationInMinutes = validateDuration(duration);
 
     // Check if teacher exists
     const teacher = await Teacher.findOne({
@@ -34,40 +35,90 @@ exports.createLectures = catchAsyncError(async (req, res, next) => {
 
     // Calculate start and end times for the lecture
     const startTimeOnly = moment(start_time, "hh:mm A").format("HH:mm:ss"); // "14:30:00" (string)
-    const endTimeOnly = moment(start_time, "hh:mm A").add(durationInMinutes, "minutes").format("HH:mm:ss"); // "15:30:00" (string)
+    const endTimeOnly = moment(end_time, "hh:mm A").format("HH:mm:ss"); // "15:30:00" (string)
+    // const endTimeOnly = moment(start_time, "hh:mm A").add(durationInMinutes, "minutes").format("HH:mm:ss"); // "15:30:00" (string)
 
     // Check for conflicting lectures for the teacher on the same day
+    // const conflictLecture = await Lecture.findOne({
+    //     where: {
+    //         day,
+    //         batch_id,
+    //         standard_id,
+    //         subject_id,
+    //         teacher_id: { [Op.ne]: teacher_id }, // Exclude the current teacher
+    //         [Op.or]: [
+    //             // Case 1: New lecture starts during an existing lecture
+    //             {
+    //                 start_time: { [Op.lte]: startTimeOnly }, // New lecture starts before or at the same time as existing lecture
+    //                 end_time: { [Op.gt]: startTimeOnly } // Existing lecture ends after the new lecture's start time
+    //             },
+    //             // Case 2: New lecture ends during an existing lecture
+    //             {
+    //                 start_time: { [Op.lt]: endTimeOnly }, // New lecture ends after the existing lecture starts
+    //                 end_time: { [Op.gte]: endTimeOnly } // Existing lecture ends after or at the same time as new lecture's end
+    //             },
+    //             // Case 3: Existing lecture fully within the new lecture time range
+    //             {
+    //                 start_time: { [Op.gte]: startTimeOnly }, // Existing lecture starts after or at the same time as new lecture's start
+    //                 end_time: { [Op.lte]: endTimeOnly } // Existing lecture ends before or at the same time as new lecture's end
+    //             },
+    //             // Case 4: New lecture fully contains an existing lecture
+    //             {
+    //                 start_time: { [Op.lte]: startTimeOnly }, // New lecture starts before or at the same time as existing lecture
+    //                 end_time: { [Op.gte]: endTimeOnly } // New lecture ends after or at the same time as existing lecture
+    //             }
+    //         ]
+    //     }
+    // });
+
+    // Check for conflicts
     const conflictLecture = await Lecture.findOne({
         where: {
-            day,
-            batch_id,
-            standard_id,
-            subject_id,
-            teacher_id: { [Op.ne]: teacher_id }, // Exclude the current teacher
+            day, // Check for the same day
             [Op.or]: [
-                // Case 1: New lecture starts during an existing lecture
+                // Case 1: Same teacher conflict
                 {
-                    start_time: { [Op.lte]: startTimeOnly }, // New lecture starts before or at the same time as existing lecture
-                    end_time: { [Op.gt]: startTimeOnly } // Existing lecture ends after the new lecture's start time
+                    teacher_id, // Same teacher
+                    [Op.or]: [
+                        // Overlapping lecture conditions
+                        {
+                            start_time: { [Op.lte]: startTimeOnly },
+                            end_time: { [Op.gt]: startTimeOnly }
+                        },
+                        {
+                            start_time: { [Op.lt]: endTimeOnly },
+                            end_time: { [Op.gte]: endTimeOnly }
+                        },
+                        {
+                            start_time: { [Op.gte]: startTimeOnly },
+                            end_time: { [Op.lte]: endTimeOnly }
+                        }
+                    ]
                 },
-                // Case 2: New lecture ends during an existing lecture
+                // Case 2: Other teachers' conflicts for the same standard, batch, and subject
                 {
-                    start_time: { [Op.lt]: endTimeOnly }, // New lecture ends after the existing lecture starts
-                    end_time: { [Op.gte]: endTimeOnly } // Existing lecture ends after or at the same time as new lecture's end
-                },
-                // Case 3: Existing lecture fully within the new lecture time range
-                {
-                    start_time: { [Op.gte]: startTimeOnly }, // Existing lecture starts after or at the same time as new lecture's start
-                    end_time: { [Op.lte]: endTimeOnly } // Existing lecture ends before or at the same time as new lecture's end
-                },
-                // Case 4: New lecture fully contains an existing lecture
-                {
-                    start_time: { [Op.lte]: startTimeOnly }, // New lecture starts before or at the same time as existing lecture
-                    end_time: { [Op.gte]: endTimeOnly } // New lecture ends after or at the same time as existing lecture
+                    standard_id,
+                    batch_id,
+                    subject_id,
+                    [Op.or]: [
+                        {
+                            start_time: { [Op.lte]: startTimeOnly },
+                            end_time: { [Op.gt]: startTimeOnly }
+                        },
+                        {
+                            start_time: { [Op.lt]: endTimeOnly },
+                            end_time: { [Op.gte]: endTimeOnly }
+                        },
+                        {
+                            start_time: { [Op.gte]: startTimeOnly },
+                            end_time: { [Op.lte]: endTimeOnly }
+                        }
+                    ]
                 }
             ]
         }
     });
+
 
     if (conflictLecture) {
         return next(new ErrorHandler('Time conflict: Another lecture is already scheduled for this teacher at the specified time.', 409));
@@ -78,7 +129,7 @@ exports.createLectures = catchAsyncError(async (req, res, next) => {
         day,
         start_time: startTimeOnly,
         end_time: endTimeOnly,
-        duration: durationInMinutes,
+        // duration: durationInMinutes,
         teacher_id,
         standard_id,
         batch_id,
@@ -97,12 +148,12 @@ exports.getLecturesList = catchAsyncError(async (req, res, next) => {
     const { teacher_id, standard_id, batch_id } = req.query;
 
     const whereClause = {}
-    if(teacher_id) whereClause.teacher_id = teacher_id
+    if (teacher_id) whereClause.teacher_id = teacher_id
     if (standard_id) whereClause.standard_id = standard_id
     if (batch_id) whereClause.batch_id = batch_id
 
-    const lectures = await Lecture.findAll({ 
-        where: { 
+    const lectures = await Lecture.findAll({
+        where: {
             ...whereClause
         },
         include: [
@@ -115,13 +166,13 @@ exports.getLecturesList = catchAsyncError(async (req, res, next) => {
                         attributes: ['name']
                     }
                 ]
-            },{
+            }, {
                 model: Standard,
                 as: 'standard'
-            },{
+            }, {
                 model: Subject,
                 as: 'subject'
-            },{
+            }, {
                 model: Batch,
                 as: 'batch'
             }

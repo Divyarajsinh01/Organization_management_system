@@ -17,25 +17,31 @@ module.exports = (sequelize, Sequelize) => {
         address: {
             type: Sequelize.STRING
         },
-        organization_time: {
-            type: Sequelize.STRING
+        organization_start_time: {
+            type: Sequelize.TIME
+        },
+        organization_end_time: {
+            type: Sequelize.TIME
         }
     },{
         timestamps: true,
         paranoid: true,
         indexes: [
+            // {
+            //     fields: ['organization_name', 'organization_time']
+            // },
             {
-                fields: ['organization_name', 'organization_time']
+                fields: ['organization_name', 'organization_start_time', 'organization_end_time']
             }
         ],        
-        hooks: {
-            beforeCreate: (organization) => {
-                validateTimeFormat(organization.organization_time)
-            },
-            beforeUpdate:  (organization) => {
-                validateTimeFormat(organization.organization_time)
-            }
-        }
+        // hooks: {
+        //     beforeCreate: (organization) => {
+        //         validateTimeFormat(organization.organization_time)
+        //     },
+        //     beforeUpdate:  (organization) => {
+        //         validateTimeFormat(organization.organization_time)
+        //     }
+        // }
     })
 
     return Organization

@@ -7,16 +7,16 @@ const { Op } = require("sequelize");
 const { Standard, Test } = db
 
 exports.scheduleTest = catchAsyncError(async (req, res, next) => {
-    const { standard_id, subject_id, batch_id, topic, scheduleDate, startTime, duration, marks } = req.body;
+    const { standard_id, subject_id, batch_id, topic, scheduleDate, startTime, endTime, description, marks } = req.body;
 
-    if (!standard_id || !subject_id || !batch_id || !topic || !scheduleDate || !startTime || !duration || !marks) {
+    if (!standard_id || !subject_id || !batch_id || !topic || !scheduleDate || !startTime || !description || !endTime || !marks) {
         return next(new ErrorHandler('Please fill all the fields!', 400))
     }
 
-    validateDate(scheduleDate)
     validateTime(startTime)
+    validateTime(endTime)
     validateISCurrentDateAndTime(scheduleDate, startTime)
-    const durationInMinutes = validateDuration(duration);
+    // const durationInMinutes = validateDuration(duration);
 
     if (isNaN(marks) || marks < 0) {
         return next(new ErrorHandler('Invalid marks! Please enter a valid number.', 400))
@@ -45,7 +45,8 @@ exports.scheduleTest = catchAsyncError(async (req, res, next) => {
 
     const startDate = moment(`${scheduleDate}`, "DD/MM/YYYY").format('YYYY-MM-DD');
     const startTimeOnly = moment(startTime, "hh:mm A").format("HH:mm:ss");    // "14:30:00" (string)
-    const endTimeOnly = moment(startTime, "hh:mm A").add(durationInMinutes, "minutes").format("HH:mm:ss"); // "15:30:00" (string)
+    const endTimeOnly = moment(endTime, "hh:mm A").format("HH:mm:ss");    
+    // const endTimeOnly = moment(startTime, "hh:mm A").add(durationInMinutes, "minutes").format("HH:mm:ss"); // "15:30:00" (string)
 
     // console.log(startDateTime)
     // console.log(endDateTime)
@@ -95,7 +96,7 @@ exports.scheduleTest = catchAsyncError(async (req, res, next) => {
         date: startDate,
         startTime: startTimeOnly,
         endTime: endTimeOnly,
-        duration: durationInMinutes,
+        description,
         marks
     })
 
@@ -108,7 +109,7 @@ exports.scheduleTest = catchAsyncError(async (req, res, next) => {
 
 exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
 
-    const { limit, page, standard_id, batch_id } = req.body;
+    const { limit, page, standard_id, batch_id, subject_id, date } = req.body;
 
     let options = {};
 
@@ -129,9 +130,17 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
         options.batch_id = batch_id;
     }
 
+    if(subject_id){
+        options.subject_id = subject_id;
+    }
+
+    if(date){
+        options.date = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD')
+    }
+
     // Get the current time in UTC
     const currentTime = moment().format('HH:mm:ss');
-    const currentDate = moment().format('YYYY-MM-DD');
+    // const currentDate = moment().format('YYYY-MM-DD');
 
     // Fetch all tests, filtering by 'pending', 'completed', and 'marks_not_assign' statuses
     const scheduleTests = await Test.findAll({
@@ -257,7 +266,7 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
 });
 
 exports.updateTestsStatus = catchAsyncError(async (req, res, next) => {
-    const { test_id, startDate, startTime, duration, status } = req.body;
+    const { test_id, startDate, startTime, endTime, status } = req.body;
 
     if (!test_id) {
         return next(new ErrorHandler('Please provide test id for update record!', 400));
@@ -285,18 +294,19 @@ exports.updateTestsStatus = catchAsyncError(async (req, res, next) => {
     }
 
     // If the duration is provided in the request, use it, otherwise, use the existing duration from the found test
-    const updatedDuration = duration ? validateDuration(duration) : isTest.duration;
+    // const updatedDuration = duration ? validateDuration(duration) : isTest.duration;
 
 
     // If startDate and startTime are provided, validate and update the test's start and end time
     if (startDate && startTime) {
         validateDate(startDate);
         validateTime(startTime)
-        validateISCurrentDateAndTime(startDate, startTime);
+        validateDate(endTime)
+        // validateISCurrentDateAndTime(startDate, startTime);
 
         const startDateOnly = moment(startDate, 'DD/MM/YYYY').format('YYYY-MM-DD')
         const startTimeOnly = moment(`${startTime}`, "hh:mm A").format('HH:mm:ss');
-        const endTimeOnly = moment(startTimeOnly).add(updatedDuration, "minutes").format('HH:mm:ss');
+        const endTimeOnly = moment(endTime, "hh:mm A").format('HH:mm:ss');
 
         // Check if any other test is already scheduled during the updated time
         const isTestConflict = await Test.findOne({
@@ -348,12 +358,12 @@ exports.updateTestsStatus = catchAsyncError(async (req, res, next) => {
         isTest.endTime = endTimeOnly;  // Update the test's end time
     }
 
-    // If duration is updated, ensure the test's end time reflects this change
-    if (duration) {
-        const newEndTime = moment(isTest.startTime, "HH:mm:ss").add(updatedDuration, "minutes").format('HH:mm:ss');
-        isTest.endTime = newEndTime;
-        isTest.duration = updatedDuration;  // Update duration if provided
-    }
+    // // If duration is updated, ensure the test's end time reflects this change
+    // if (duration) {
+    //     const newEndTime = moment(isTest.startTime, "HH:mm:ss").add(updatedDuration, "minutes").format('HH:mm:ss');
+    //     isTest.endTime = newEndTime;
+    //     isTest.duration = updatedDuration;  // Update duration if provided
+    // }
 
     await isTest.save();
 

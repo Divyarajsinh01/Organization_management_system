@@ -3,18 +3,22 @@ const db = require('../models/index')
 const Organization = db.Organization
 const ErrorHandler = require("../utils/errorHandler"); // Custom error handler utility
 const cloudinaryUpload = require("../utils/fileUploader"); // Utility for uploading files to Cloudinary
+const { validateTime } = require("../utils/validation");
+const moment = require('moment')
 
 // Controller to add a new organization
 exports.addOrganizations = catchAsyncError(async (req, res, next) => {
-    const { organization_name, address, organization_time } = req.body; // Destructure fields from request body
+    const { organization_name, address, organization_start_time, organization_end_time } = req.body; // Destructure fields from request body
 
+    validateTime(organization_start_time)
+    validateTime(organization_end_time)
     // Check if logo file is provided
     if (!req.file) {
         return next(new ErrorHandler('Please provide organization logo', 400)); // Return error if logo is missing
     }
 
     // Check if all required fields are filled
-    if (!organization_name || !organization_time || !address) {
+    if (!organization_name || !organization_start_time || !organization_end_time || !address) {
         return next(new ErrorHandler('Please fill in all fields', 400)); // Return error if any field is missing
     }
 
@@ -32,11 +36,15 @@ exports.addOrganizations = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 500)); // Return error if upload fails
     }
 
+    const startTime = moment(organization_start_time, "hh:mm A").format("HH:mm:ss"); 
+    const endTime = moment(organization_end_time, "hh:mm A").format("HH:mm:ss"); 
+
     // Create the organization in the database
     const organization = await Organization.create({
         organization_name,
         address,
-        organization_time,
+        organization_start_time: startTime,
+        organization_end_time: endTime,
         logo
     });
 
@@ -68,8 +76,9 @@ exports.getAllOrganizations = catchAsyncError(async (req, res, next) => {
 
 // Controller to update an existing organization
 exports.updateOrganization = catchAsyncError(async (req, res, next) => {
-    const { organization_id, organization_name, address, organization_time } = req.body; // Destructure fields from request body
-
+    const { organization_id, organization_name, address, organization_start_time, organization_end_time } = req.body; // Destructure fields from request body
+    validateTime(organization_start_time)
+    validateTime(organization_end_time)
     // Check if the organization exists in the database
     const isOrganizationExist = await Organization.findOne({ where: { organization_id: organization_id } });
     if (!isOrganizationExist) {
@@ -86,11 +95,15 @@ exports.updateOrganization = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler(error.message, 500)); // Return error if upload fails
     }
 
+    const startTime = moment(organization_start_time, "hh:mm A").format("HH:mm:ss"); 
+    const endTime = moment(organization_end_time, "hh:mm A").format("HH:mm:ss"); 
+
     // Update the organization in the database
     await isOrganizationExist.update({
         organization_name,
         address,
-        organization_time,
+        organization_start_time: startTime,
+        organization_end_time: endTime,
         logo // Include the new logo if provided
     });
 

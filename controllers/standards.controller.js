@@ -4,15 +4,12 @@ const Standard = db.Standard;
 const Subject = db.Subject;
 const ErrorHandler = require("../utils/errorHandler");
 
+//add only standard
 exports.addStandard = catchAsyncError(async (req, res, next) => {
-    const { standard, subjectIDs } = req.body
+    const { standard } = req.body
 
     if (!standard) {
         return next(new ErrorHandler('please provide standard!', 400))
-    }
-
-    if (!subjectIDs || subjectIDs.length <= 0) {
-        return next(new ErrorHandler('please provide subjects!', 400))
     }
 
     const isStandard = await Standard.findOne({ where: { standard } })
@@ -21,32 +18,70 @@ exports.addStandard = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('standard already exists!', 400))
     }
 
-    const isSubjects = await Subject.findAll({
-        where: {subject_id:  subjectIDs}
-    })
+    const transaction = await db.sequelize.transaction()
 
-    if(subjectIDs.length !== isSubjects.length){
-        return next(new ErrorHandler('One or more subjects do not exist!', 400))
+    try {
+        const newStandard = await Standard.create({ standard }, {transaction})
+
+        await transaction.commit()
+        res.status(200).json({
+            success: true,
+            message: 'standard and subjects added successfully',
+            data: newStandard
+        })
+        
+    } catch (error) {
+        await transaction.rollback()
+        return next(new ErrorHandler(error.message, 500))
     }
-
-    const newStandard = await Standard.create({ standard })
-    // console.log(Object.keys(newStandard.__proto__));
-    await newStandard.addSubjects(subjectIDs)
-
-    res.status(200).json({
-        success: true,
-        message: 'standard added successfully',
-    })
 })
 
+// add standard with subjects 
+// exports.addStandard = catchAsyncError(async (req, res, next) => {
+//     const { standard, subjects } = req.body
+
+//     if (!standard) {
+//         return next(new ErrorHandler('please provide standard!', 400))
+//     }
+
+//     if (!subjects || !Array.isArray(subjects) || subjects.length === 0) {
+//         return next(new ErrorHandler('Please provide subjects!', 400));
+//     }
+
+//     const isStandard = await Standard.findOne({ where: { standard } })
+
+//     if (isStandard) {
+//         return next(new ErrorHandler('standard already exists!', 400))
+//     }
+
+//     const transaction = await db.sequelize.transaction()
+
+//     try {
+//         const newStandard = await Standard.create({ standard }, {transaction})
+//         const subjectData = subjects.map(subject => ({
+//             standard_id: newStandard.standard_id, // Associate with the new standard
+//             subject_name: subject.subject_name,  // Name of the subject
+//         }));
+//         // console.log(Object.keys(newStandard.__proto__));
+//         await Subject.bulkCreate(subjectData, {transaction})
+//         res.status(200).json({
+//             success: true,
+//             message: 'standard and subjects added successfully',
+//         })
+        
+//     } catch (error) {
+//         await transaction.rollback()
+//         return next(new ErrorHandler(error.message, 500))
+//     }
+// })
+
+// get all standards only 
 exports.getAllStandardWithAssociatedSubjects = catchAsyncError(async (req, res, next) => {
     const standards = await Standard.findAll({
-        include: [{
-            model: Subject,
-            through: {
-                attributes: []
-            }
-        }]
+        // include: {
+        //     model: Subject,
+        //     // required: true
+        // }
     })
 
     if(standards.length <= 0){
@@ -60,9 +95,9 @@ exports.getAllStandardWithAssociatedSubjects = catchAsyncError(async (req, res, 
     })
 })
 
-
+// update standard
 exports.updateStandard = catchAsyncError(async (req, res, next) => {
-    const { standard_id, standard, subjectIDs, removeSubjectIDs } = req.body;
+    const { standard_id, standard} = req.body;
 
     // Check if standard_id is provided
     if (!standard_id) {
@@ -81,43 +116,13 @@ exports.updateStandard = catchAsyncError(async (req, res, next) => {
         await existingStandard.save();
     }
 
-    // If subject IDs are provided, update the associated subjects
-    if (subjectIDs && subjectIDs.length > 0) {
-        // Check if the provided subject IDs exist
-        const isSubjects = await Subject.findAll({
-            where: { subject_id: subjectIDs }
-        });
-
-        if (subjectIDs.length !== isSubjects.length) {
-            return next(new ErrorHandler('One or more subjects do not exist!', 400));
-        }
-
-        // Add new associated subjects without removing existing ones
-        await existingStandard.addSubjects(subjectIDs);
-    }
-
-        // If removeSubjectIDs are provided, manage the removal of subjects
-        if (removeSubjectIDs && removeSubjectIDs.length > 0) {
-            // Check if the subjects to be removed exist in the current association
-            const currentSubjects = await existingStandard.getSubjects();
-    
-            const currentSubjectIds = currentSubjects.map(subject => subject.subject_id);
-            const nonExistingRemovals = removeSubjectIDs.filter(id => !currentSubjectIds.includes(id));
-    
-            if (nonExistingRemovals.length > 0) {
-                return next(new ErrorHandler('One or more subjects to remove do not exist in the current standard!', 400));
-            }
-    
-            // Remove the subjects
-            await existingStandard.removeSubjects(removeSubjectIDs);
-        }
-
     res.status(200).json({
         success: true,
         message: 'Standard updated successfully!',
     });
 });
 
+// delete standard
 exports.deleteStandard = catchAsyncError(async (req, res, next) => {
     const {standard_id} = req.body
 

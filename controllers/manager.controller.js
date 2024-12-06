@@ -9,26 +9,31 @@ const { validateTimeFormat } = require("../utils/validation");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 
 exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, timing } = req.body;
-    const role_id = 2; //super admin
+    // request body
+    const { name, email, mobileNo, address, mobileNo2, gender, timing } = req.body;
+
+    const role_id = 2; //Manager
+
+    //role validation
     const role = await UserRole.findOne({ where: {role_id} });
     if(!role) return next(new ErrorHandler("Role not found", 404));
 
     // Validate required fields
-    if (!name || !email || !mobileNo || !address || !timing) {
+    if (!name || !email || !mobileNo || !address || !gender || !timing) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
-    const randomPassword = generateRandomPassword()
+    // random password generate
+    // const randomPassword = generateRandomPassword()
 
     // Start a transaction
     const t = await sequelize.transaction();
 
     try {
-        // Check if a super admin with the same email already exists
+        // Check if email  or mobile number already exists
         const isManager = await User.findOne({
             where: {
-                [Op.or]: [
+                [Op.and]: [
                     { email },
                     { mobileNo }
                 ]
@@ -42,14 +47,17 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
             return next(new ErrorHandler("This email or mobile number is already in use!", 400));
         }
 
+        // random login id generate
         const login_id = await generateLoginIdWithRandom(role.role, User)
 
-        // Create new manager (User)
+        // Create new manager (User) with default password (Manager@123)
         const manager = await User.create({
             name,
             email,
             mobileNo,
-            password: randomPassword,
+            password: 'Manager@123',
+            mobileNo2: mobileNo2 || null,
+            gender,
             address,
             login_id,  // Assign email as login_id
             role_id
@@ -67,6 +75,7 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
         // Fetch newly created user along with the role and manager info
         const user = await User.findOne({
             where: { email },
+            attributes: {exclude: ['password']},
             include: [{
                 model: Manager,
                 as: 'manager'
@@ -80,7 +89,7 @@ exports.createManagerBySuperAdmin = catchAsyncError(async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: 'Manager created successfully',
-            data: { ...user.toJSON(), password: randomPassword } // Password might be sensitive; consider removing it
+            data: user// Password might be sensitive; consider removing it
         });
 
     } catch (error) {

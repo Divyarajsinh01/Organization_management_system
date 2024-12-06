@@ -224,7 +224,7 @@ exports.resetLoginPassword = catchAsyncError(async (req, res, next) => {
 //update useProfile
 
 exports.updateProfilePic = catchAsyncError(async (req, res, next) => {
-    const user = req.user.user_id
+    const user = req.user
 
     const profile_image = await cloudinaryUpload(req.file.buffer, req.file.mimetype)
 

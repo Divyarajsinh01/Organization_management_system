@@ -6,6 +6,13 @@ module.exports = (sequelize, Sequelize) => {
             primaryKey: true,
             unique: true
         },
+        standard_id: {
+            type: Sequelize.INTEGER,
+            references: {
+                model: 'standards',
+                key: 'standard_id'
+            }
+        },
         subject_name: {
             type:  Sequelize.STRING,
             allowNull: false

@@ -4,20 +4,27 @@ const { User, sequelize, Standard, Organization, Student, UserRole, Batch } = re
 const ErrorHandler = require("../utils/errorHandler");
 const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
+const { validateDate } = require("../utils/validation");
+const moment = require('moment')
 
 exports.createStudents = catchAsyncError(async (req, res, next) => {
-    const { name, email, mobileNo, address, standard_id, batch_id, organization_id, wantToProcess } = req.body;
+    //request body
+    const { name, email, mobileNo, address, mobileNo2,DOB, gender, standard_id, batch_id, organization_id, wantToProcess } = req.body;
 
-    if (!name || !email || !mobileNo || !address || !standard_id || !batch_id || !organization_id) {
+    // validation for all fields
+    if (!name || !email || !mobileNo || !address || !standard_id || !gender || !batch_id || !organization_id || !DOB) {
         return next(new ErrorHandler("Please fill all the fields", 400));
     }
 
+    validateDate(DOB)
+
+    // check if email or mobile no already exists
     const isUser = await Student.findAll({
         include: [
             {
                 model: User,
                 where: {
-                    [Op.or]: [
+                    [Op.and]: [
                         { email },
                         { mobileNo }
                     ]
@@ -34,12 +41,20 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler("This email or mobile number is already in use!", 400, isUser));
     }
 
-    const role_id = 4; //super admin
+    const role_id = 4; // student role id
+
+    // role validation
     const role = await UserRole.findOne({ where: { role_id } });
     if (!role) return next(new ErrorHandler("Role not found", 404));
 
-    const randomPassword = generateRandomPassword();
+    // random password generation
+    // const randomPassword = generateRandomPassword();
+
+    // random login id generation
+
     const login_id = await generateLoginIdWithRandom(role.role, User)
+
+    // transaction start
     const transaction = await sequelize.transaction()
 
     try {
@@ -47,7 +62,9 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
             name,
             email,
             mobileNo,
-            password: randomPassword,
+            mobileNo2: mobileNo2 || null,
+            gender, 
+            password: 'Student@123', // default password
             login_id,
             address,
             role_id
@@ -75,16 +92,20 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
             return next(new ErrorHandler('Organization not found', 404))
         }
 
+        const DOBFormate = moment(`${DOB}`, "DD/MM/YYYY").format('YYYY-MM-DD');
+
         await Student.create({
             user_id: user.user_id,
             standard_id,
             batch_id,
+            DOB: DOBFormate,
             organization_id
         }, { transaction })
 
         await transaction.commit()
         const studentData = await User.findOne({
             where: { user_id: user.user_id },
+            attributes: {exclude : ['password']},
             include: [
                 {
                     model: UserRole,
@@ -110,10 +131,7 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
         res.status(200).json({
             success: true,
             message: 'Student created successfully!',
-            data: {
-                ...studentData.toJSON(),
-                password: randomPassword
-            }
+            data: studentData
         })
 
     } catch (error) {
