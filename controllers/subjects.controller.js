@@ -52,7 +52,7 @@ exports.addSubjects = catchAsyncError(async (req, res, next) => {
             subject => !existingSubjectNames.includes(subject.subject_name.toLowerCase())
         );
 
-        console.log('Filtered subjects (without existing ones):', filterSubjects);
+        // console.log('Filtered subjects (without existing ones):', filterSubjects);
 
        filterSubjects.reduce((sub, subject) => {
         const subject_name = subject.subject_name

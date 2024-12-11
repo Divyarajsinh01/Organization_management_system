@@ -6,6 +6,6 @@ const { roleRestrict } = require('../middlewares/roleRestrict')
 const router =  express.Router()
 
 router.route('/create/lectures').post(authMiddleware,roleRestrict(1,2), createLectures)
-router.route('/get/lectures').get(authMiddleware, getLecturesList)
+router.route('/get/lectures').post(authMiddleware, getLecturesList)
 
 module.exports = router

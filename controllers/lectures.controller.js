@@ -1,6 +1,6 @@
 const { where, Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { Teacher, Lecture, User, Standard, Subject, Batch } = require("../models");
+const { Teacher, Lecture, User, Standard, Subject, Batch, Sequelize } = require("../models");
 const { validateTime, validateDuration } = require("../utils/validation");
 const ErrorHandler = require("../utils/errorHandler");
 const moment = require("moment");
@@ -145,12 +145,20 @@ exports.createLectures = catchAsyncError(async (req, res, next) => {
 
 
 exports.getLecturesList = catchAsyncError(async (req, res, next) => {
-    const { teacher_id, standard_id, batch_id } = req.query;
+    const { teacher_id, standard_id, batch_id, day } = req.body;
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     const whereClause = {}
     if (teacher_id) whereClause.teacher_id = teacher_id
     if (standard_id) whereClause.standard_id = standard_id
     if (batch_id) whereClause.batch_id = batch_id
+    if (day){
+        const isDay = daysOfWeek.includes(day)
+        if(!isDay){
+            return next(new ErrorHandler('Invalid day of the week', 400))
+        }
+        whereClause.day = day
+    }
 
     const lectures = await Lecture.findAll({
         where: {
@@ -176,17 +184,39 @@ exports.getLecturesList = catchAsyncError(async (req, res, next) => {
                 model: Batch,
                 as: 'batch'
             }
-        ]
+        ],
+        // group: ['day']
     })
 
     if (lectures.length <= 0) {
         return next(new ErrorHandler('No lectures found for the specified standard and batch.', 400))
     }
 
+    // Group lectures by day
+    const groupedLectures = lectures.reduce((acc, lecture) => {
+        const day = lecture.day; // Assuming each lecture has a 'day' property
+
+        // If the day doesn't exist in the accumulator, create an empty array for lectures
+        if (!acc[day]) {
+            acc[day] = [];
+        }
+
+        // Add the current lecture to the list for that day
+        acc[day].push(lecture);
+
+        return acc;
+    }, {});
+
+    // Convert the grouped lectures into the desired structure: [{ day: 'Monday', lectures: [...] }, ...]
+    const result = daysOfWeek.map(day => ({
+        day,
+        lectures: groupedLectures[day] || []  // If no lectures for that day, return an empty array
+    }));
+
     res.status(200).json({
         success: true,
         message: 'Lectures list retrieved successfully!',
-        data: lectures
+        data: result
     })
 })
 
