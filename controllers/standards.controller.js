@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const db = require('../models/index')
 const Standard = db.Standard;
@@ -112,6 +113,17 @@ exports.updateStandard = catchAsyncError(async (req, res, next) => {
 
     // Update the standard name if provided
     if (standard) {
+        const duplicateStandard = await Standard.findOne({ 
+            where: { 
+                standard, 
+                standard_id: { [Op.ne]: standard_id } // Exclude the current standard being updated
+            } 
+        });
+
+        if (duplicateStandard) {
+            return next(new ErrorHandler('A standard with the same name already exists!', 400));
+        }
+
         existingStandard.standard = standard;
         await existingStandard.save();
     }

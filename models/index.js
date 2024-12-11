@@ -21,14 +21,15 @@ db.Teacher = require('./teacher.model')(sequelize, Sequelize)
 db.TeacherAssignment = require('./teacherAssignment.model')(sequelize, Sequelize)
 db.Lecture = require('./lecture.model')(sequelize, Sequelize)
 db.Student = require('./student.model')(sequelize, Sequelize)
-db.StudentResult = require('./studentResult.model')(sequelize,Sequelize)
-db.Holiday = require('./holidays.model')(sequelize,Sequelize)
+db.StudentResult = require('./studentResult.model')(sequelize, Sequelize)
+db.Holiday = require('./holidays.model')(sequelize, Sequelize)
 db.StudentAttendance = require('./attendance.model')(sequelize, Sequelize)
 db.StudentFees = require('./studentFees.model')(sequelize, Sequelize)
 db.StudentPayment = require('./studentPayment.model')(sequelize, Sequelize)
 db.NotificationType = require('./notificationType.model')(sequelize, Sequelize)
 db.Notification = require('./notification.model')(sequelize, Sequelize)
 db.SuperAdmin = require('./superAdmin.model')(sequelize, Sequelize)
+db.Installment = require('./installment.model')(sequelize, Sequelize)
 
 // Define one-to-many associations between user and userRoles model
 db.UserRole.hasMany(db.User, { foreignKey: 'role_id' })
@@ -109,7 +110,7 @@ db.Standard.hasMany(db.Test, {
 
 db.Test.belongsTo(db.Standard, {
     foreignKey: 'standard_id',
-    as:  'standard', // Alias for accessing the related standard
+    as: 'standard', // Alias for accessing the related standard
 })
 
 // define association between test and subjects
@@ -122,7 +123,7 @@ db.Subject.hasMany(db.Test, {
 
 db.Test.belongsTo(db.Subject, {
     foreignKey: 'subject_id',
-    as:  'subjects', // Alias for accessing the related standard
+    as: 'subjects', // Alias for accessing the related standard
 })
 
 // define association between test and batches
@@ -242,7 +243,7 @@ db.User.hasOne(db.Student, {
     onUpdate: 'CASCADE'
 })
 
-db.Student.belongsTo(db.User, {foreignKey: 'user_id'})
+db.Student.belongsTo(db.User, { foreignKey: 'user_id' })
 
 db.Standard.hasMany(db.Student, {
     foreignKey: 'standard_id',
@@ -250,7 +251,7 @@ db.Standard.hasMany(db.Student, {
     onUpdate: 'CASCADE'
 })
 
-db.Student.belongsTo(db.Standard,{
+db.Student.belongsTo(db.Standard, {
     foreignKey: 'standard_id'
 })
 
@@ -270,27 +271,27 @@ db.Organization.hasMany(db.Student, {
     onUpdate: 'CASCADE'
 })
 
-db.Student.belongsTo(db.Organization,{
+db.Student.belongsTo(db.Organization, {
     foreignKey: 'organization_id'
 })
 
 //student and test associations
 
-db.Student.hasMany(db.StudentResult,{
+db.Student.hasMany(db.StudentResult, {
     foreignKey: 'student_id',
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE'
 })
 
-db.StudentResult.belongsTo(db.Student, {foreignKey: 'student_id'})
+db.StudentResult.belongsTo(db.Student, { foreignKey: 'student_id' })
 
-db.Test.hasMany(db.StudentResult,{
+db.Test.hasMany(db.StudentResult, {
     foreignKey: 'test_id',
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE'
 })
 
-db.StudentResult.belongsTo(db.Test, {foreignKey: 'test_id'})
+db.StudentResult.belongsTo(db.Test, { foreignKey: 'test_id' })
 
 //student and attendance association
 db.Student.hasMany(db.StudentAttendance, {
@@ -301,36 +302,6 @@ db.Student.hasMany(db.StudentAttendance, {
 
 db.StudentAttendance.belongsTo(db.Student, {
     foreignKey: 'student_id'
-})
-
-db.Student.hasOne(db.StudentFees, {
-    foreignKey: 'student_id',
-    onUpdate: 'CASCADE',
-    onDelete: 'CASCADE'
-})
-
-db.StudentFees.belongsTo(db.Student,{
-    foreignKey: 'student_id'
-})
-
-db.StandardFees.hasOne(db.StudentFees,{
-    foreignKey: 'fees_id',
-    onUpdate: 'CASCADE',
-    onDelete: 'CASCADE'
-})
-
-db.StudentFees.belongsTo(db.StandardFees, {
-    foreignKey: 'fees_id'
-})
-
-db.StudentFees.hasMany(db.StudentPayment, {
-    foreignKey: 'student_fees_id',
-    onUpdate: 'CASCADE',
-    onDelete: 'CASCADE'
-})
-
-db.StudentPayment.belongsTo(db.StudentFees, {
-    foreignKey: 'student_fees_id'
 })
 
 db.NotificationType.hasMany(db.Notification, {
@@ -349,7 +320,7 @@ db.User.hasMany(db.Notification, {
     onDelete: 'CASCADE'
 })
 
-db.Notification.belongsTo(db.User,{
+db.Notification.belongsTo(db.User, {
     foreignKey: 'user_id'
 })
 
@@ -359,8 +330,100 @@ db.User.hasOne(db.SuperAdmin, {
     onDelete: 'CASCADE'
 })
 
-db.SuperAdmin.belongsTo(db.User,{
+db.SuperAdmin.belongsTo(db.User, {
     foreignKey: 'user_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+// fees relation with standard and student with installment
+
+// db.Student.hasOne(db.StudentFees, {
+//     foreignKey: 'student_id',
+//     onUpdate: 'CASCADE',
+//     onDelete: 'CASCADE'
+// })
+
+// db.StudentFees.belongsTo(db.Student,{
+//     foreignKey: 'student_id'
+// })
+
+// db.StandardFees.hasOne(db.StudentFees,{
+//     foreignKey: 'fees_id',
+//     onUpdate: 'CASCADE',
+//     onDelete: 'CASCADE'
+// })
+
+// db.StudentFees.belongsTo(db.StandardFees, {
+//     foreignKey: 'fees_id'
+// })
+
+// db.StudentFees.hasMany(db.StudentPayment, {
+//     foreignKey: 'student_fees_id',
+//     onUpdate: 'CASCADE',
+//     onDelete: 'CASCADE'
+// })
+
+// db.StudentPayment.belongsTo(db.StudentFees, {
+//     foreignKey: 'student_fees_id'
+// })
+
+db.StandardFees.hasMany(db.Installment, {
+    foreignKey: 'fees_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.Installment.belongsTo(db.StandardFees, {
+    foreignKey: 'fees_id',
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
+})
+
+db.StandardFees.hasMany(db.StudentFees, {
+    foreignKey: 'fees_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentFees.belongsTo(db.StandardFees, {
+    foreignKey: 'fees_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.Student.hasMany(db.StudentFees, {
+    foreignKey: 'student_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentFees.belongsTo(db.Student, {
+    foreignKey: 'student_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.Installment.hasMany(db.StudentPayment, {
+    foreignKey: 'installment_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentPayment.belongsTo(db.Installment, {
+    foreignKey: 'installment_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.Student.hasMany(db.StudentPayment, {
+    foreignKey: 'student_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.StudentPayment.belongsTo(db.Student, {
+    foreignKey: 'student_id',
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE'
 })

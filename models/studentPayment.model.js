@@ -6,23 +6,47 @@ module.exports = (sequelize, Sequelize) => {
             autoIncrement: true,
             unique: true
         },
-        student_fees_id: {
+        installment_id: {
             type: Sequelize.INTEGER,
             references: {
-                model: 'studentFees',
-                key: 'student_fees_id'
+                model: 'installments',
+                key: 'installment_id'
             },
-            allowNull: false
         },
+        student_id: {
+            type: Sequelize.INTEGER,
+            references: {
+                model: 'students',
+                key: 'student_id'
+            }
+        },
+        // student_fees_id: {                   // remove
+        //     type: Sequelize.INTEGER,
+        //     references: {
+        //         model: 'studentFees',
+        //         key: 'student_fees_id'
+        //     },
+        //     allowNull: false
+        // },
         payment_date: {
             type: Sequelize.DATEONLY,
-            allowNull: false
+            allowNull: true
         },
         payment_amount: {
             type: Sequelize.DECIMAL(10, 2),
-            allowNull: false
+            allowNull: true
         },
-        status: {
+        due_fees: {
+            type: Sequelize.DECIMAL(10, 2),
+        },
+        due_date: {
+            type: Sequelize.DATEONLY,
+        },
+        installment_status: {
+            type: Sequelize.ENUM('paid', 'partially_paid', 'over_due', 'due', 'upcoming'),
+            defaultValue: 'upcoming'
+        },
+        approval_status: {               //rename to payment_status
             type: Sequelize.ENUM('pending', 'approved', 'rejected',),
             defaultValue: 'pending'
         }

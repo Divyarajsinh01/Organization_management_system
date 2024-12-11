@@ -20,20 +20,20 @@ module.exports = (sequelize, Sequelize) => {
                 key: 'fees_id'
             }
         },
-        due_date: {
-            type: Sequelize.DATEONLY,
-            allowNull: false,
-        },
-        due_fees: {
-            type: Sequelize.DECIMAL(10, 2),
-            allowNull: false
-        },
+        // due_date: {
+        //     type: Sequelize.DATEONLY,
+        //     allowNull: false,
+        // },
+        // due_fees: {
+        //     type: Sequelize.DECIMAL(10, 2),
+        //     allowNull: false
+        // },
         pending_fees: {
             type: Sequelize.DECIMAL(10, 2),
             allowNull: true
         },
         status: {
-            type: Sequelize.ENUM('pending', 'fully_paid'),
+            type: Sequelize.ENUM('pending', 'fully_paid', 'partially_paid'),
             defaultValue: 'pending'
         }
     }, {

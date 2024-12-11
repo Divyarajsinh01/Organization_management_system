@@ -148,6 +148,8 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
             email: createdTeacher.user.email,
             login_id: createdTeacher.user.login_id,
             mobileNo: createdTeacher.user.mobileNo,
+            mobileNo2: createdTeacher.user.mobileNo2,
+            gender: createdTeacher.user.gender,
             address: createdTeacher.user.address,
             role_id: createdTeacher.user.role_id,
             assignStandard: []
@@ -226,6 +228,8 @@ exports.getTeacherList = catchAsyncError(async (req, res, next) => {
             email: teacher.user.email,
             login_id: teacher.user.login_id,
             mobileNo: teacher.user.mobileNo,
+            mobileNo2: createdTeacher.user.mobileNo2,
+            gender: createdTeacher.user.gender,
             address: teacher.user.address,
             role_id: teacher.user.role_id,
             assignStandard: []
@@ -311,6 +315,8 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
         // password: randomPassword,
         login_id: teacher.user.login_id,
         mobileNo: teacher.user.mobileNo,
+        mobileNo2: createdTeacher.user.mobileNo2,
+        gender: createdTeacher.user.gender,
         address: teacher.user.address,
         role_id: teacher.user.role_id,
         assignStandard: []

@@ -138,7 +138,7 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
-    const { student_id, standard_id, batch_id, subject_id, from_date, to_date } = req.body;
+    const { login_id, student_id, standard_id, batch_id, subject_id, from_date, to_date } = req.body;
 
     validateDate(from_date);
     validateDate(to_date)
@@ -149,6 +149,7 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
     // Initialize filter options for students and tests
     const whereConditions = {};
     const testConditions = {};
+    const userWhere = {}
 
     // Apply filters if provided
     if (student_id) whereConditions.student_id = student_id;
@@ -172,12 +173,17 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
         };
     }
 
+    if(login_id){
+        userWhere.login_id = login_id
+    }
+
     // Query Student table with related StudentResults and Tests
     const studentsWithMarks = await Student.findAll({
         where: whereConditions,  // Filters based on student data
         include: [
             {
                 model: User,
+                where: userWhere,
                 attributes: { exclude: ['password'] },
             },
             {
@@ -210,7 +216,7 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
 
     // Check if results are found
     if (!studentsWithMarks.length) {
-        return next(new ErrorHandler("No marks found for the given filters", 404));
+        return next(new ErrorHandler("No marks found!", 404));
     }
 
     const studentResultData = calculateAverageMarks(studentsWithMarks)

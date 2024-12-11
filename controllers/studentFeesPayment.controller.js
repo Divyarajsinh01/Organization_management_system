@@ -1,15 +1,15 @@
-const { StudentFees, StudentPayment, Student, User, Standard, Batch,sequelize, Notification  } = require("../models");
+const { StudentFees, StudentPayment, Student, User, Standard, Batch, sequelize, Notification, Installment } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const moment = require("moment");
 const { validateDate } = require("../utils/validation");
 
 exports.studentPayFees = catchAsyncError(async (req, res, next) => {
-    const { student_fees_id, payment_date, payment_amount, new_due_date_days } = req.body;
+    const { installment_id, student_id, payment_date, payment_amount, newDueDate } = req.body;
     const user = req.user; // Assuming user role comes from the authentication middleware
 
     // Validate input
-    if (!student_fees_id || !payment_date || !payment_amount) {
+    if (!installment_id || !student_id || !payment_date || !payment_amount) {
         return next(new ErrorHandler("Please provide student_fees_id, payment_date, and payment_amount.", 400));
     }
 
@@ -24,89 +24,128 @@ exports.studentPayFees = catchAsyncError(async (req, res, next) => {
         validateDate(payment_date);
         const formattedPaymentDate = moment(payment_date, "DD/MM/YYYY").format("YYYY-MM-DD");
 
-        // Check if student_fees_id exists
-        const studentFees = await StudentFees.findOne({ where: { student_fees_id } }, { transaction });
-        if (!studentFees) {
-            throw new ErrorHandler(`Student fee record with ID ${student_fees_id} does not exist.`, 404);
+        // Check if installment exists
+        const isInstallment = await Installment.findOne({ where: { installment_id }, transaction })
+
+        if (!isInstallment) {
+            throw new ErrorHandler('no installment found!')
         }
 
-        // Check if payment amount exceeds pending fees
-        if (payment_amount > studentFees.pending_fees) {
-            throw new ErrorHandler("Payment amount exceeds pending fees.", 400);
+        const isStudent = await Student.findOne({
+            where: { student_id },
+            include: [
+                {
+                    model: User,
+                    attributes: { exclude: ['password'] }
+                },
+                {
+                    model: Standard,
+                },
+                { model: Batch },
+            ],
+            transaction
+        })
+        if (!isStudent) {
+            throw new ErrorHandler('no student found!', 400)
         }
 
-        // Check if payment for the same date already exists
-        const isPaymentAlready = await StudentPayment.findOne({ where: { student_fees_id, payment_date: formattedPaymentDate } }, { transaction });
-        if (isPaymentAlready) {
-            throw new ErrorHandler("Payment for this date already exists.", 400);
+        const paymentRecord = await StudentPayment.findOne({ where: { installment_id, student_id }, transaction })
+
+        if (!paymentRecord) {
+            throw new ErrorHandler('no installment record found for student!',400)
+        }
+
+        if (paymentRecord.installment_status === "paid") {
+            throw new ErrorHandler("Installment already fully paid!", 400);
+        }
+
+        const studentFeesRecord = await StudentFees.findOne({ where: { student_id, fees_id: isInstallment.fees_id } })
+
+        if (!studentFeesRecord) {
+            throw new ErrorHandler('no fees found for student', 400)
         }
 
         // Determine role-based behavior
-        let paymentStatus = "pending"; // Default status
-        let updatedPendingFees = studentFees.pending_fees;
-        let newDueDate = studentFees.due_date; // Keep current due date unless updated
-
-        if (user.role.role === "Super Admin") {
-            paymentStatus = "approved";
-            updatedPendingFees -= payment_amount; // Deduct payment amount from pending fees
-
-            // Calculate the new due date (default to 30 days from payment date if not provided)
-            const daysToAdd = new_due_date_days || 30; // Default 30 days
-            newDueDate = moment(payment_date, "DD/MM/YYYY").add(daysToAdd, "days").format("YYYY-MM-DD");
+        // let updatedPendingFees = studentFeesRecord.pending_fees;
+        // console.log(updatedPendingFees, studentFeesRecord.status)
+        let installmentAmount = paymentRecord.due_fees || isInstallment.amount
+        // console.log((parseFloat(paymentRecord.payment_amount) || 0) + payment_amount)
+        // Check if payment exceeds the total due for this installment
+        if (payment_amount > installmentAmount) {
+            throw new ErrorHandler("Payment amount exceeds the installment due amount.", 400);
         }
 
-        // Create payment record
-        const paymentRecord = await StudentPayment.create({
-            student_fees_id,
-            payment_date: formattedPaymentDate,
-            payment_amount,
-            status: paymentStatus,
-        }, { transaction });
+        // Update the payment record old code
+        // if (payment_amount < installmentAmount) {
+        //     paymentRecord.installment_status = 'partially_paid'
+        //     paymentRecord.payment_date = formattedPaymentDate
+        //     paymentRecord.payment_amount = (parseFloat(paymentRecord.payment_amount) || 0) + payment_amount
+        //     paymentRecord.due_date = newDueDate ? newDueDate : paymentRecord.due_date
+        //     paymentRecord.due_fees = installmentAmount - payment_amount
+        //     // Update pending fees in StudentFees (reduce by the payment_amount, but not below 0)
 
-        // Update pending fees and due date only if payment is approved (by super admin)
-        if (user.role.role === "Super Admin") {
-            await StudentFees.update(
-                {
-                    pending_fees: updatedPendingFees,
-                    due_date: newDueDate, // Update due date
-                    status: updatedPendingFees === 0 ? "fully_paid" : "pending",
-                },
-                { where: { student_fees_id }, transaction }
-            );
+        //     studentFeesRecord.pending_fees = Math.max(0, studentFeesRecord.pending_fees - payment_amount);
+        //     studentFeesRecord.status = studentFeesRecord.pending_fees === 0 ? "fully_paid" : "pending"
+        // }else{
+        //     paymentRecord.installment_status = 'paid'
+        //     paymentRecord.payment_date = formattedPaymentDate
+        //     paymentRecord.payment_amount = (parseFloat(paymentRecord.payment_amount) || 0) + payment_amount
+        //     paymentRecord.due_date = null
+        //     paymentRecord.due_fees = 0
+        //     studentFeesRecord.pending_fees = Math.max(0, studentFeesRecord.pending_fees - payment_amount);
+        //     studentFeesRecord.status = studentFeesRecord.pending_fees === 0 ? "fully_paid" : "pending"
+        // }
 
-            await transaction.commit(); // Commit transaction
-            return res.status(200).json({
-                success: true,
-                message: "Payment successfully processed by Super Admin.",
-                payment: paymentRecord,
-                updated_due_date: newDueDate,
-            });
-        } else if (user.role.role === "Manager") {
-            const superAdmin = await User.findAll({ where: { role_id: 1 } }, { transaction });
-            if (superAdmin.length === 0) {
-                await transaction.rollback(); // Rollback transaction
-                throw new ErrorHandler("No Super Admin found.", 404);
+        // Update payment record new code
+        const newPaymentAmount = (parseFloat(paymentRecord.payment_amount) || 0) + payment_amount;
+        const newDueFees = installmentAmount - payment_amount;
+
+        paymentRecord.payment_date = formattedPaymentDate;
+        paymentRecord.payment_amount = newPaymentAmount;
+        paymentRecord.due_fees = newDueFees;
+
+        if (newDueFees > 0) {
+            if (!newDueDate) {
+                throw new ErrorHandler('due date is required for partially paid installment', 400)
             }
-
-            for (const admin of superAdmin) {
-                await Notification.create({
-                    user_id: admin.user_id,
-                    notification_type_id: 4,
-                    title: 'Payment request notification',
-                    message: `Payment taken by ${user.name} with amount ${payment_amount}`,
-                }, { transaction });
-            }
-
-            await transaction.commit(); // Commit transaction
-            return res.status(200).json({
-                success: true,
-                message: "Payment request sent to Super Admin for approval.",
-                payment: paymentRecord,
-            });
+            validateDate(newDueDate)
+            const formattedDueDate = moment(newDueDate, 'DD/MM/YYYY').format('YYYY-MM-DD')
+            // Partial Payment
+            paymentRecord.installment_status = "partially_paid";
+            paymentRecord.due_date = formattedDueDate || paymentRecord.due_date; // Keep or update due date
+        } else {
+            // Full Payment
+            paymentRecord.installment_status = "paid";
+            paymentRecord.due_date = null; // Clear due date
         }
+
+        // Update student fees record
+        studentFeesRecord.pending_fees = Math.max(0, studentFeesRecord.pending_fees - payment_amount);
+        studentFeesRecord.status = studentFeesRecord.pending_fees === 0 ? "fully_paid" : "pending";
+
+        await paymentRecord.save({ transaction });
+        await studentFeesRecord.save({ transaction });
+
+        if (user.role_id === 2) {
+            const superAdmin = await User.findAll({ where: { role_id: 1 }, transaction });
+            const notifications = superAdmin.map(admin => ({
+                user_id: admin.user_id,
+                notification_type_id: 4,
+                title: "Payment notification",
+                message: `Payment received: ${user.name} collected ₹${payment_amount} from ${isStudent.user.name} (Standard: ${isStudent.standard.standard}, Batch: ${isStudent.batch.name}). Payment Date: ${formattedPaymentDate}.`,
+            }));
+            
+            await Notification.bulkCreate(notifications, { transaction });
+        }
+
+        await transaction.commit(); // Commit transaction
+        res.status(200).json({
+            success: true,
+            message: "Payment successfully received!",
+        });
     } catch (error) {
         await transaction.rollback(); // Rollback transaction in case of error
-        return next(error);
+        return next(error instanceof ErrorHandler ? error : new ErrorHandler(error.message, 500));
     }
 });
 
