@@ -228,8 +228,8 @@ exports.getTeacherList = catchAsyncError(async (req, res, next) => {
             email: teacher.user.email,
             login_id: teacher.user.login_id,
             mobileNo: teacher.user.mobileNo,
-            mobileNo2: createdTeacher.user.mobileNo2,
-            gender: createdTeacher.user.gender,
+            mobileNo2: teacher.user.mobileNo2,
+            gender: teacher.user.gender,
             address: teacher.user.address,
             role_id: teacher.user.role_id,
             assignStandard: []
@@ -315,8 +315,8 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
         // password: randomPassword,
         login_id: teacher.user.login_id,
         mobileNo: teacher.user.mobileNo,
-        mobileNo2: createdTeacher.user.mobileNo2,
-        gender: createdTeacher.user.gender,
+        mobileNo2: teacher.user.mobileNo2,
+        gender: teacher.user.gender,
         address: teacher.user.address,
         role_id: teacher.user.role_id,
         assignStandard: []
