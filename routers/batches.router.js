@@ -6,7 +6,7 @@ const { createBatches, getListOfStandardWithBatches, updateBatches, deleteBatch 
 const router = express.Router()
 
 router.route('/create/batches').post(authMiddleware, roleRestrict(1,2), createBatches)
-router.route('/all/standards-batches').get(authMiddleware, roleRestrict(1,2), getListOfStandardWithBatches)
+router.route('/all/standards-batches').get(authMiddleware, roleRestrict(1,2, 3, 4), getListOfStandardWithBatches)
 router.route('/update/batches').post(authMiddleware, roleRestrict(1,2), updateBatches)
 router.route('/delete/batches').post(authMiddleware, roleRestrict(1,2), deleteBatch)
 
