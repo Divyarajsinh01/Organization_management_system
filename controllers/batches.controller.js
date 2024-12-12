@@ -79,11 +79,18 @@ exports.updateBatches = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('Batch not found!', 400))
     }
 
-    validateTime(batch_start_time)
-    validateTime(batch_end_time)
+    let startTime
+    let endTime
 
-    const startTime = moment(batch_start_time, "hh:mm A").format("HH:mm:ss"); 
-    const endTime = moment(batch_end_time, "hh:mm A").format("HH:mm:ss");  
+    if(batch_end_time && batch_start_time){
+        validateTime(batch_start_time)
+        validateTime(batch_end_time)
+         startTime = moment(batch_start_time, "hh:mm A").format("HH:mm:ss"); 
+         endTime = moment(batch_end_time, "hh:mm A").format("HH:mm:ss");  
+    }
+
+
+
 
     // Check if another batch with the same name exists for the same standard
     const batchExists = await Batch.findOne({
