@@ -7,6 +7,6 @@ const router = express.Router()
 
 router.route('/create/student/fees/record').post(authMiddleware, roleRestrict(1, 2), createStudentFeesRecords)
 router.route('/get/students/fees/record').post(authMiddleware, roleRestrict(1, 2), getStudentFeesRecordList)
-router.route('/get/student/fees/record').post(authMiddleware, roleRestrict(1, 2), getSingleStudentFeesRecord)
+router.route('/get/student/fees/record').post(authMiddleware, roleRestrict(1, 2, 3, 4), getSingleStudentFeesRecord)
 
 module.exports = router
