@@ -1,6 +1,6 @@
 const { Op } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { User, sequelize, Standard, Organization, Student, UserRole, Batch } = require('../models');
+const { User, sequelize, Standard, Organization, Student, UserRole, Batch, StandardFees, Installment, StudentFees, StudentPayment } = require('../models');
 const ErrorHandler = require("../utils/errorHandler");
 const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
@@ -94,13 +94,34 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
 
         const DOBFormate = moment(`${DOB}`, "DD/MM/YYYY").format('YYYY-MM-DD');
 
-        await Student.create({
+        const student = await Student.create({
             user_id: user.user_id,
             standard_id,
             batch_id,
             DOB: DOBFormate,
             organization_id
         }, { transaction })
+
+        const standardFees = await StandardFees.findOne({where: {standard_id}, transaction})
+
+        if(standardFees){
+            const installments = await Installment.findAll({where: {fees_id: standardFees.fees_id}, transaction})
+
+            const studentFees = {
+                fees_id: standardFees.fees_id,
+                student_id: student.student_id,
+                pending_fees: standardFees.fees,
+            }
+
+            const studentInstallments = installments.map(installment => ({
+                installment_id: installment.installment_id,
+                student_id: student.student_id,
+            }));
+
+            await StudentFees.create(studentFees, { transaction });
+
+            await StudentPayment.bulkCreate(studentInstallments, { transaction });
+        }
 
         await transaction.commit()
         const studentData = await User.findOne({
