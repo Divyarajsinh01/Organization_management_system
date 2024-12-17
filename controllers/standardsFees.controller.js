@@ -117,7 +117,8 @@ exports.getStandardsFeesList = catchAsyncError(async (req, res, next) => {
             model: StandardFees,
             include: [
                 {
-                    model: db.Installment
+                    model: db.Installment,
+                    order: [['due_date', 'ASC']]
                 }
             ]
         }]
