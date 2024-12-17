@@ -93,7 +93,7 @@ exports.addSubjects = catchAsyncError(async (req, res, next) => {
 })
 
 exports.getAllSubjects = catchAsyncError(async (req, res, next) => {
-    const { standard_id } = req.query
+    const { standard_id } = req.body
 
     const subjectWhere = {}
     if (standard_id) {

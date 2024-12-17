@@ -23,7 +23,7 @@ const calculateAverageMarks = (students) => {
 };
 
 exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
-    const { studentMarks, isNotify } = req.body;
+    const { studentMarks, test_id,  isNotify } = req.body;
 
     // Start a transaction
     const transaction = await sequelize.transaction();
@@ -31,7 +31,7 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
     try {
         const userMessages = []; // Array to collect notification messages
 
-        for (const { student_id, test_id, obtained_marks } of studentMarks) {
+        for (const { student_id, obtained_marks } of studentMarks) {
             // Check if required fields are present
             if (!student_id || !test_id || obtained_marks === undefined) {
                 return next(new ErrorHandler('Please fill all the fields', 400));
@@ -117,6 +117,7 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
 
         // **Save notifications to the database if isNotify is true**
         if (isNotify && userMessages.length > 0) {
+            console.log(test_id)
             await Notification.bulkCreate(userMessages, { transaction });
 
             // Update the test record's notificationSent field after processing all students
