@@ -12,12 +12,14 @@ const calculateAverageMarks = (students) => {
     const studentsArray = Array.isArray(students) ? students : [students];
 
     return studentsArray.map((student) => {
-        const totalMarks = student.studentResults.reduce((sum, result) => sum + result.obtained_marks, 0);
-        const averageMarks = totalMarks / student.studentResults.length;
+        const totalMarks = student.studentResults.reduce((acc, mark) => acc + mark.test.marks, 0);
+        const totalObtainedMarks = student.studentResults.reduce((sum, result) => sum + result.obtained_marks, 0);
+        const percentage = (totalObtainedMarks / totalMarks) * 100;
         return {
             ...student.toJSON(),
             totalMarks,
-            average_marks: averageMarks,
+            totalObtainedMarks,
+            percentage,
         };
     });
 };
@@ -117,12 +119,12 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
 
         // **Save notifications to the database if isNotify is true**
         if (isNotify && userMessages.length > 0) {
-            console.log(test_id)
+            // console.log(test_id)
             await Notification.bulkCreate(userMessages, { transaction });
 
             // Update the test record's notificationSent field after processing all students
             await Test.update({
-                notificationSent: true
+                isNotificationSent: true
             }, { where: { test_id }, transaction });
         }
 
@@ -316,7 +318,7 @@ exports.getTop10Students = catchAsyncError(async (req, res, next) => {
     res.status(200).json({
         success: true,
         message: "Top 10 students fetched successfully!",
-        data: studentResultData
+        data: top10Students
     });
 });
 
@@ -395,13 +397,13 @@ exports.getStudentsProgressReport = catchAsyncError(async (req, res, next) => {
     }
 
     // Calculate total and average marks for each student
-    // const studentsProgress = calculateAverageMarksForMultipleStudents(studentsWithProgress);
+    const studentsProgress = calculateAverageMarks(studentsWithProgress);
 
     // Send the progress data
     res.status(200).json({
         success: true,
         message: 'Students progress reports fetched successfully!',
-        data: studentsWithProgress,
+        data: studentsProgress,
     });
 });
 
