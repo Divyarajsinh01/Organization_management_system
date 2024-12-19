@@ -1,7 +1,6 @@
 const { where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const db = require('../models/index');
-const Subject = db.Subject;
+const {Subject, Standard} = require('../models/index');
 const ErrorHandler = require("../utils/errorHandler");
 
 exports.addSubjects = catchAsyncError(async (req, res, next) => {
@@ -99,7 +98,16 @@ exports.getAllSubjects = catchAsyncError(async (req, res, next) => {
     if (standard_id) {
         subjectWhere.standard_id = standard_id
     }
-    const subjects = await Subject.findAll({ where: subjectWhere })
+    const subjects = await Standard.findAll({  
+        where: subjectWhere,
+        include: [
+            {
+                model: Subject,
+                as: 'subjects',
+                required: true
+            }
+        ]
+     })
     if (subjects.length <= 0) {
         return next(new ErrorHandler('Subjects data not available!', 400))
     }
