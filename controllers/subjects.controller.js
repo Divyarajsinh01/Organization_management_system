@@ -1,6 +1,6 @@
 const { where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const {Subject, Standard} = require('../models/index');
+const {Subject, Standard, sequelize} = require('../models/index');
 const ErrorHandler = require("../utils/errorHandler");
 
 exports.addSubjects = catchAsyncError(async (req, res, next) => {
@@ -36,7 +36,7 @@ exports.addSubjects = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('standard not found!', 400))
     }
 
-    const transaction = await db.sequelize.transaction()
+    const transaction = await sequelize.transaction()
 
     try {
         const existingSubject = await Subject.findAll({
