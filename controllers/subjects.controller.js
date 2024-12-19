@@ -30,7 +30,7 @@ exports.addSubjects = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('Please provide subjects!', 400));
     }
 
-    const isStandard = await db.Standard.findOne({ where: { standard_id } })
+    const isStandard = await Standard.findOne({ where: { standard_id } })
 
     if (!isStandard) {
         return next(new ErrorHandler('standard not found!', 400))
