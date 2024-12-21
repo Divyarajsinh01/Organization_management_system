@@ -233,7 +233,7 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getTop10Students = catchAsyncError(async (req, res, next) => {
-    const { standard_id, batch_id,  subject_ids, from_date, to_date } = req.body;
+    const { standard_id, batch_id, subject_ids, from_date, to_date } = req.body;
 
     validateDate(from_date);
     validateDate(to_date)
@@ -312,7 +312,7 @@ exports.getTop10Students = catchAsyncError(async (req, res, next) => {
     const studentResultData = calculateAverageMarks(studentsWithMarks);
 
     // Sort students by average marks in descending order
-    const top10Students = studentResultData.sort((a, b) => b.average_marks - a.average_marks).slice(0, 10);
+    const top10Students = studentResultData.sort((a, b) => b.totalObtainedMarks - a.totalObtainedMarks).slice(0, 10);
 
     // Send the aggregated data (top 10 students with their average marks)
     res.status(200).json({
@@ -325,7 +325,7 @@ exports.getTop10Students = catchAsyncError(async (req, res, next) => {
 exports.getStudentsProgressReport = catchAsyncError(async (req, res, next) => {
     const { user_id } = req.user; // Assume user_id is from JWT or session
     // console.log(user_id)
-    const { standard_id, batch_id, subject_id, from_date, to_date } = req.body;
+    const { standard_id, batch_id, subject_ids, from_date, to_date } = req.body;
 
     validateDate(from_date);
     validateDate(to_date);
@@ -340,7 +340,7 @@ exports.getStudentsProgressReport = catchAsyncError(async (req, res, next) => {
     // Apply filters if provided
     if (standard_id) whereConditions.standard_id = standard_id;
     if (batch_id) whereConditions.batch_id = batch_id;
-    if (subject_id) testConditions.subject_id = subject_id;
+    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = {[Op.in]: subject_ids};
 
     // Handle date range filtering
     if (from_date && to_date) {
