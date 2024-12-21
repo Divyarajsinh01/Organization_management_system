@@ -31,11 +31,11 @@ exports.validateTimeFormat = (timeRange) => {
     const [startTime, endTime] = timeRange.split(' - ');
 
     // Using 'h:mm A' format for times like "9:30 AM" and "6:00 PM"
-    const isValidStartTime = moment(startTime.trim(), 'h:mm A', true).isValid();
-    const isValidEndTime = moment(endTime.trim(), 'h:mm A', true).isValid();
+    const isValidStartTime = moment(startTime.trim(), 'hh:mm A', true).isValid();
+    const isValidEndTime = moment(endTime.trim(), 'hh:mm A', true).isValid();
 
     if (!isValidStartTime || !isValidEndTime) {
-        throw new Error('Time must be in the format "h:mm AM/PM - h:mm AM/PM"');
+        throw new Error('Time must be in the format "hh:mm AM/PM - hh:mm AM/PM"');
     }
 };
 
