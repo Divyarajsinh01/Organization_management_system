@@ -51,7 +51,15 @@ exports.createBatches = catchAsyncError(async (req, res, next) => {
 })
 
 exports.getListOfStandardWithBatches = catchAsyncError(async (req, res, next) => {
+    const {standard_id} = req.body
+
+    const standardWhere = {}
+
+    if(standard_id) {
+        standardWhere.standard_id = standard_id
+    }
     const standards = await Standard.findAll({
+        where: standardWhere,
         include: {
             model: Batch,
             as: 'batches',
