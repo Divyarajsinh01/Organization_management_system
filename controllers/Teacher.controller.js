@@ -69,26 +69,24 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
             }, { transaction });
 
             if (!isStandard) {
-                await transaction.rollback();
-                return next(new ErrorHandler("Invalid standard id", 400));
+                throw new ErrorHandler("Invalid standard id", 400);
             }
 
             const standardSubjects = await isStandard.getSubjects({
                 where: { subject_id: subject_ids }
             }, { transaction });
 
-            if (standardSubjects.length === 0) {
-                await transaction.rollback();
-                return next(new ErrorHandler("No subjects found for the given standard and subject ids", 400));
+            if (standardSubjects.length !== subject_ids.length) {
+                throw new ErrorHandler("No subjects found for the given standard and subject ids", 400);
             }
 
-            const standardBatches = await isStandard.getBatches({
-                where: { batch_id: batches_ids }
+            const standardBatches = await Batch.findAll({
+                where: { standard_id: standard_id, batch_id: { [Op.in]: batches_ids } }
             }, { transaction });
 
-            if (standardBatches.length === 0) {
-                await transaction.rollback();
-                return next(new ErrorHandler('One or more batch ids are invalid', 400));
+            if (standardBatches.length !== batches_ids.length) {
+                // await transaction.rollback();
+                throw new ErrorHandler('One or more batch ids are invalid', 400);
             }
 
             for (const subject_id of subject_ids) {
@@ -105,8 +103,8 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
                     }, { transaction });
 
                     if (existingAssignment) {
-                        await transaction.rollback();
-                        return next(new ErrorHandler(`Subject already assigned for this standard and batch`, 400));
+                        // await transaction.rollback();
+                        throw new ErrorHandler(`Subject already assigned for this standard and batch`, 400);
                     }
 
                     teacherAssignments.push({
@@ -199,7 +197,7 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
 
     } catch (error) {
         await transaction.rollback();
-        return next(new ErrorHandler(error.message, 400));
+        return next(error instanceof ErrorHandler ? error : new ErrorHandler(error.message, 400));
     }
 });
 

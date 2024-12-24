@@ -1,5 +1,6 @@
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const { Holiday } = require("../models");
+const ErrorHandler = require("../utils/errorHandler");
 const { validateDate } = require("../utils/validation");
 const moment = require('moment')
 
