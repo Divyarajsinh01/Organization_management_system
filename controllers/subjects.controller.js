@@ -44,12 +44,16 @@ exports.addSubjects = catchAsyncError(async (req, res, next) => {
             transaction
         })
 
+        // console.log(existingSubject)
+
         const existingSubjectNames = existingSubject.map(subject => subject.subject_name.toLowerCase())
 
         // Filter out subjects that already exist in the database
         const filterSubjects = subjects.filter(
             subject => !existingSubjectNames.includes(subject.subject_name.toLowerCase())
         );
+
+        // console.log(filterSubjects)
 
         // console.log('Filtered subjects (without existing ones):', filterSubjects);
 
