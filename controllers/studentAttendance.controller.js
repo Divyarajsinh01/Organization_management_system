@@ -109,7 +109,7 @@ exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
 
 exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
     const { name, student_id, standard_id, batch_id, isAbsent, date, startDate, endDate } = req.body
-    
+
 
     const attendanceWhere = {}
     const studentWhere = {}
@@ -168,11 +168,28 @@ exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
         },
     });
 
+    // Generate an array of holiday dates
+    const holidayDates = holidays.flatMap(holiday => {
+        const start = moment(holiday.start_date, 'YYYY-MM-DD');
+        const end = moment(holiday.end_date, 'YYYY-MM-DD');
+
+        let current = moment(start);
+        const endMoment = moment(end);
+
+        const dates = [];
+        while (current.isSameOrBefore(endMoment)) {
+            dates.push(current.format('YYYY-MM-DD')); // Add the current date
+            current.add(1, 'days'); // Move to the next day
+        }
+
+        return dates; // Return all dates for this holiday
+    });
+
     // Calculate total holiday days
     const totalHolidayDays = calculateHolidayDays(holidays, formattedStartDate, formattedEndDate);
 
     // Calculate total study days
-    const totalStudyDays = calculateStudyDays(formattedStartDate, formattedEndDate, totalHolidayDays);
+    const totalStudyDays = calculateStudyDays(formattedStartDate, formattedEndDate, holidayDates);
     const attendanceList = await Student.findAll({
         where: studentWhere,
         include: [
@@ -217,6 +234,7 @@ exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
             totalAbsent,
             totalHolidays: totalHolidayDays,
             totalStudyDays: totalStudyDays,
+            holidayDates
         };
     });
 
@@ -292,11 +310,28 @@ exports.getLoginStudentAttendance = catchAsyncError(async (req, res, next) => {
         },
     });
 
+    // Generate an array of holiday dates
+    const holidayDates = holidays.flatMap(holiday => {
+        const start = moment(holiday.start_date, 'YYYY-MM-DD');
+        const end = moment(holiday.end_date, 'YYYY-MM-DD');
+
+        let current = moment(start);
+        const endMoment = moment(end);
+
+        const dates = [];
+        while (current.isSameOrBefore(endMoment)) {
+            dates.push(current.format('YYYY-MM-DD')); // Add the current date
+            current.add(1, 'days'); // Move to the next day
+        }
+
+        return dates; // Return all dates for this holiday
+    });
+
     // Calculate total holiday days
     const totalHolidayDays = calculateHolidayDays(holidays, formattedStartDate, formattedEndDate);
 
     // Calculate total study days
-    const totalStudyDays = calculateStudyDays(formattedStartDate, formattedEndDate, totalHolidayDays);
+    const totalStudyDays = calculateStudyDays(formattedStartDate, formattedEndDate, holidayDates);
 
     const attendanceList = await Student.findAll({
         where: studentWhere,
@@ -345,6 +380,7 @@ exports.getLoginStudentAttendance = catchAsyncError(async (req, res, next) => {
             totalAbsent,
             totalHolidays: totalHolidayDays,
             totalStudyDays: totalStudyDays,
+            holidayDates
         };
     });
 
