@@ -4,7 +4,8 @@ const { Student, StudentResult, Test, Sequelize, User, Subject, Standard, Batch,
 const ErrorHandler = require("../utils/errorHandler");
 const { validateDate } = require("../utils/validation");
 const { Op } = Sequelize;
-const moment = require('moment')
+const moment = require('moment');
+const calculateOverAllPercentage = require("../utils/calculateOverAllPercentage");
 
 // Function to calculate average marks for each student
 const calculateAverageMarks = (students) => {
@@ -12,9 +13,16 @@ const calculateAverageMarks = (students) => {
     const studentsArray = Array.isArray(students) ? students : [students];
 
     return studentsArray.map((student) => {
-        const totalMarks = student.studentResults.reduce((acc, mark) => acc + mark.test.marks, 0);
-        const totalObtainedMarks = student.studentResults.reduce((sum, result) => sum + result.obtained_marks, 0);
-        const percentage = (totalObtainedMarks / totalMarks) * 100;
+        const totalMarks = student.studentResults.length
+            ? student.studentResults.reduce((acc, mark) => acc + mark.test.marks, 0)
+            : 0;
+
+        const totalObtainedMarks = student.studentResults.length
+            ? student.studentResults.reduce((sum, result) => sum + result.obtained_marks, 0)
+            : 0;
+
+        const percentage = totalMarks > 0 ? (totalObtainedMarks / totalMarks) * 100 : 0;
+
         return {
             ...student.toJSON(),
             totalMarks,
@@ -25,7 +33,7 @@ const calculateAverageMarks = (students) => {
 };
 
 exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
-    const { studentMarks, test_id,  isNotify } = req.body;
+    const { studentMarks, test_id, isNotify } = req.body;
 
     // Start a transaction
     const transaction = await sequelize.transaction();
@@ -141,7 +149,7 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
-    const { login_id, student_id, standard_id, batch_id, subject_ids, from_date, to_date } = req.body;
+    const { login_id, student_id, standard_id, batch_id, subject_ids, from_date, to_date, overAll } = req.body;
 
     validateDate(from_date);
     validateDate(to_date)
@@ -159,7 +167,7 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
     if (standard_id) whereConditions.standard_id = standard_id;
     if (batch_id) whereConditions.batch_id = batch_id;
 
-    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = {[Op.in] : subject_ids};
+    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = { [Op.in]: subject_ids };
 
     // Handle date range filtering
     if (from_date && to_date) {
@@ -176,7 +184,7 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
         };
     }
 
-    if(login_id){
+    if (login_id) {
         userWhere.login_id = login_id
     }
 
@@ -224,12 +232,25 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
 
     const studentResultData = calculateAverageMarks(studentsWithMarks)
 
-    // Send the aggregated data (total and average marks)
-    res.status(200).json({
+    let overAllPercentage
+    if(overAll){
+        overAllPercentage = calculateOverAllPercentage(studentsWithMarks)
+    }
+
+    const responseData = {
         success: true,
         message: "Student marks fetched successfully!",
-        data: studentResultData
-    });
+        data: studentResultData,
+        // overAllPercentage : overAll ? overAllPercentage : null
+    }
+
+    // Add overAllPercentage inside the data object if it exists
+    if (overAllPercentage !== null) {
+        responseData.overAllPercentage = overAllPercentage;
+    }
+
+    // Send the aggregated data (total and average marks)
+    res.status(200).json(responseData);
 });
 
 exports.getTop10Students = catchAsyncError(async (req, res, next) => {
@@ -249,7 +270,7 @@ exports.getTop10Students = catchAsyncError(async (req, res, next) => {
     if (standard_id) whereConditions.standard_id = standard_id;
     if (batch_id) whereConditions.batch_id = batch_id;
 
-    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = {[Op.in] : subject_ids};
+    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = { [Op.in]: subject_ids };
 
     // Handle date range filtering
     if (from_date && to_date) {
@@ -340,7 +361,7 @@ exports.getStudentsProgressReport = catchAsyncError(async (req, res, next) => {
     // Apply filters if provided
     if (standard_id) whereConditions.standard_id = standard_id;
     if (batch_id) whereConditions.batch_id = batch_id;
-    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = {[Op.in]: subject_ids};
+    if (subject_ids && subject_ids.length > 0) testConditions.subject_id = { [Op.in]: subject_ids };
 
     // Handle date range filtering
     if (from_date && to_date) {
