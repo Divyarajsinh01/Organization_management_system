@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const { User, Teacher, TeacherAssignment, Standard, Subject, Batch, sequelize, UserRole } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
@@ -402,6 +402,27 @@ exports.createTeacher = catchAsyncError(async (req, res, next) => {
 
 exports.getTeacherList = catchAsyncError(async (req, res, next) => {
     // const { limit, page } = req.query;
+    const { standard_id, batch_id, subject_id } = req.query
+
+    const teacherAssignmentsWhere = {}
+    const standardWhere = {}
+    const subjectWhere = {}
+    const batchWhere = {}
+
+    if (standard_id) {
+        teacherAssignmentsWhere.standard_id = standard_id
+        standardWhere.standard_id = standard_id
+    }
+
+    if (subject_id) {
+        teacherAssignmentsWhere.subject_id = subject_id
+        subjectWhere.subject_id = subject_id
+    }
+
+    if (batch_id) {
+        teacherAssignmentsWhere.batch_id = batch_id
+        batchWhere.batch_id = batch_id
+    }
 
     const teachersList = await Teacher.findAll({
         include: [{
@@ -409,14 +430,28 @@ exports.getTeacherList = catchAsyncError(async (req, res, next) => {
             attributes: { exclude: ['password'] }
         }, {
             model: TeacherAssignment,
+            where: teacherAssignmentsWhere,
             // attributes: [],
             include: [
-                { model: Standard },
-                { model: Subject },
-                { model: Batch }
+                {
+                    model: Standard,
+                    where: standardWhere
+                },
+                {
+                    model: Subject,
+                    where: subjectWhere
+                },
+                {
+                    model: Batch,
+                    where: batchWhere
+                }
             ]
         }]
     })
+
+    if(teachersList.length <= 0){
+        return next(new ErrorHandler('Teacher data not found!', 400))
+    }
 
     const formattedTeachersList = teachersList.map((teacher) => {
         const responseData = {
