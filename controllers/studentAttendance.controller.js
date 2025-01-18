@@ -108,12 +108,16 @@ exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getAttendanceList = catchAsyncError(async (req, res, next) => {
-    const { name, student_id, standard_id, batch_id, isAbsent, date, startDate, endDate } = req.body
+    const { name, login_id, student_id, standard_id, batch_id, isAbsent, date, startDate, endDate } = req.body
 
 
     const attendanceWhere = {}
     const studentWhere = {}
     const userWhere = {}
+
+    if(login_id){
+        userWhere.login_id = login_id
+    }
 
     if (name) {
         userWhere.name = { [Op.like]: `%${name}%` }
