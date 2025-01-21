@@ -306,3 +306,28 @@ exports.getLecturesList = catchAsyncError(async (req, res, next) => {
 //         data: lecture
 //     });
 // });
+
+// delete lecture 
+
+exports.deleteLecture = catchAsyncError(async (req, res, next) =>{
+    const {lecture_id} = req.body;
+
+    if(!lecture_id){
+        return next(new ErrorHandler('Please provide a valid lecture id', 400));
+    }
+
+    const isLecture = await Lecture.findOne({
+        where: {lecture_id}
+    })
+
+    if(!isLecture){
+        return next(new ErrorHandler('No lecture available', 400))
+    }
+
+    await isLecture.destroy()
+
+    res.status(200).json({
+        success: true,
+        message: 'Lecture deleted successfully!'    
+    })
+})
