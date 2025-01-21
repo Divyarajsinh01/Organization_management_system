@@ -152,9 +152,9 @@ exports.getLecturesList = catchAsyncError(async (req, res, next) => {
     if (teacher_id) whereClause.teacher_id = teacher_id
     if (standard_id) whereClause.standard_id = standard_id
     if (batch_id) whereClause.batch_id = batch_id
-    if (day){
+    if (day) {
         const isDay = daysOfWeek.includes(day)
-        if(!isDay){
+        if (!isDay) {
             return next(new ErrorHandler('Invalid day of the week', 400))
         }
         whereClause.day = day
@@ -220,107 +220,134 @@ exports.getLecturesList = catchAsyncError(async (req, res, next) => {
     })
 })
 
-// exports.updateLecture = catchAsyncError(async (req, res, next) => {
-//     const { id, day, start_time, duration, teacher_id, standard_id, batch_id, subject_id } = req.body;
+exports.updateLecture = catchAsyncError(async (req, res, next) => {
+    const { lecture_id, day, start_time, end_time, teacher_id, standard_id, batch_id, subject_id } = req.body;
 
-//     // Basic validation for required fields
-//     if (!id || !day || !start_time || !duration || !teacher_id || !standard_id || !batch_id || !subject_id) {
-//         return res.status(400).json({ message: 'All fields are required.' });
-//     }
+    // Basic validation for required fields
+    if (!lecture_id) {
+        return next(new ErrorHandler('Lecture id is required.', 400));
+    }
 
-//     // Validate start time and duration
-//     validateTime(start_time);
-//     const durationInMinutes = validateDuration(duration);
+    // Check if the lecture exists
+    const lecture = await Lecture.findOne({ where: { lecture_id } });
+    if (!lecture) {
+        return next(new ErrorHandler('Lecture not found!', 404));
+    }
 
-//     // Check if the lecture exists
-//     const lecture = await Lecture.findOne({ where: { id } });
-//     if (!lecture) {
-//         return next(new ErrorHandler('Lecture not found!', 404));
-//     }
+    const updateFields = {}
+    if(day) updateFields.day = day
+    if(start_time) {
+        validateTime(start_time)
+        updateFields.start_time = moment(start_time, "hh:mm A").format("HH:mm:ss")
+    }
+    if(end_time) {
+        validateTime(end_time)
+        updateFields.end_time = moment(end_time, "hh:mm A").format("HH:mm:ss")
+    }
 
-//     // Check if teacher exists
-//     const teacher = await Teacher.findOne({ where: { teacher_id } });
-//     if (!teacher) {
-//         return next(new ErrorHandler('Teacher not found!', 400));
-//     }
+    if(standard_id) updateFields.standard_id = standard_id
+    if(subject_id) updateFields.subject_id = subject_id
+    if(batch_id) updateFields.batch_id = batch_id
+    if(teacher_id) updateFields.teacher_id = teacher_id
 
-//     // Check if teacher is assigned to the specified standard, subject, and batch
-//     const isTeacherAssignment = await teacher.getTeacherAssignments({
-//         where: { standard_id, subject_id, batch_id }
-//     });
-//     if (isTeacherAssignment.length <= 0) {
-//         return next(new ErrorHandler('Teacher is not assigned to this subject in batch and standard!', 400));
-//     }
+    // Prepare conflict check fields
+    const conflictDay = updateFields.day || lecture.day;
+    const conflictStartTime = updateFields.start_time || lecture.start_time;
+    const conflictEndTime = updateFields.end_time || lecture.end_time;
+    const conflictTeacherId = teacher_id || lecture.teacher_id;
+    const conflictStandardId = standard_id || lecture.standard_id;
+    const conflictBatchId = batch_id || lecture.batch_id;
+    const conflictSubjectId = subject_id || lecture.subject_id;
 
-//     // Calculate new start and end times for the updated lecture
-//     const startTimeOnly = moment(start_time, "hh:mm A").format("HH:mm:ss");
-//     const endTimeOnly = moment(start_time, "hh:mm A").add(durationInMinutes, "minutes").format("HH:mm:ss");
+    // Check if teacher exists
+    const teacher = await Teacher.findOne({ where: { teacher_id: conflictTeacherId } });
+    if (!teacher) {
+        return next(new ErrorHandler('Teacher not found!', 400));
+    }
 
-//     // Check if any lecture in the same batch, standard, and day has a time conflict for any teacher (excluding the current teacher if it's an update)
-//     const conflictLecture = await Lecture.findOne({
-//         where: {
-//             day,
-//             batch_id, // Same batch
-//             standard_id, // Same standard
-//             id: { [Op.ne]: id }, // Exclude the current lecture from conflict check
-//             [Op.or]: [
-//                 {
-//                     start_time: { [Op.lte]: startTimeOnly },
-//                     end_time: { [Op.gt]: startTimeOnly } // New lecture starts before or during an existing lecture
-//                 },
-//                 {
-//                     start_time: { [Op.lt]: endTimeOnly },
-//                     end_time: { [Op.gte]: endTimeOnly } // New lecture ends after or during an existing lecture
-//                 },
-//                 {
-//                     start_time: { [Op.gte]: startTimeOnly },
-//                     end_time: { [Op.lte]: endTimeOnly } // New lecture fully contains an existing lecture
-//                 },
-//                 {
-//                     start_time: { [Op.lte]: startTimeOnly },
-//                     end_time: { [Op.gte]: endTimeOnly } // Existing lecture fully contains the new lecture
-//                 }
-//             ]
-//         }
-//     });
+    // Check if teacher is assigned to the specified standard, subject, and batch
+    const isTeacherAssignment = await teacher.getTeacherAssignments({
+        where: { standard_id: conflictStandardId, subject_id: conflictSubjectId, batch_id: conflictBatchId }
+    });
+    if (isTeacherAssignment.length <= 0) {
+        return next(new ErrorHandler('Teacher is not assigned to this subject in batch and standard!', 400));
+    }
 
-//     if (conflictLecture) {
-//         return next(new ErrorHandler('Time conflict: Another lecture is already scheduled for this time in the specified standard and batch.', 409));
-//     }
+    // Check if any lecture in the same batch, standard, and day has a time conflict for any teacher (excluding the current teacher if it's an update)
+    const conflictLecture = await Lecture.findOne({
+        where: {
+            day: conflictDay,
+            lecture_id: { [Op.ne]: lecture_id }, // Exclude the current lecture from conflict check
+            [Op.or]: [
+                // Overlapping lecture conditions for teacher
+                {
+                    teacher_id: conflictTeacherId,
+                    [Op.or]: [
+                        {
+                            start_time: { [Op.lte]: conflictStartTime },
+                            end_time: { [Op.gt]: conflictStartTime }
+                        },
+                        {
+                            start_time: { [Op.lt]: conflictEndTime },
+                            end_time: { [Op.gte]: conflictEndTime }
+                        },
+                        {
+                            start_time: { [Op.gte]: conflictStartTime },
+                            end_time: { [Op.lte]: conflictEndTime }
+                        }
+                    ]
+                },
+                // Case 2: Other teachers' conflicts for the same standard, batch, and subject
+                {
+                    standard_id: conflictStandardId,
+                    batch_id: conflictBatchId,
+                    subject_id: conflictSubjectId,
+                    [Op.or]: [
+                        {
+                            start_time: { [Op.lte]: conflictStartTime },
+                            end_time: { [Op.gt]: conflictStartTime }
+                        },
+                        {
+                            start_time: { [Op.lt]: conflictEndTime },
+                            end_time: { [Op.gte]: conflictEndTime }
+                        },
+                        {
+                            start_time: { [Op.gte]: conflictStartTime },
+                            end_time: { [Op.lte]: conflictEndTime }
+                        }
+                    ]
+                }
+            ]
+        }
+    });
 
-//     // Update the lecture if no conflict
-//     lecture.day = day;
-//     lecture.start_time = startTimeOnly;
-//     lecture.end_time = endTimeOnly;
-//     lecture.duration = durationInMinutes;
-//     lecture.teacher_id = teacher_id;
-//     lecture.standard_id = standard_id;
-//     lecture.batch_id = batch_id;
-//     lecture.subject_id = subject_id;
+    if (conflictLecture) {
+        return next(new ErrorHandler('Time conflict: Another lecture is already scheduled for this time in the specified standard and batch.', 409));
+    }
 
-//     await lecture.save();
+    await lecture.update(updateFields);
 
-//     res.status(200).json({
-//         success: true,
-//         message: 'Lecture updated successfully!',
-//         data: lecture
-//     });
-// });
+    res.status(200).json({
+        success: true,
+        message: 'Lecture updated successfully!',
+        data: lecture
+    });
+});
 
 // delete lecture 
 
-exports.deleteLecture = catchAsyncError(async (req, res, next) =>{
-    const {lecture_id} = req.body;
+exports.deleteLecture = catchAsyncError(async (req, res, next) => {
+    const { lecture_id } = req.body;
 
-    if(!lecture_id){
+    if (!lecture_id) {
         return next(new ErrorHandler('Please provide a valid lecture id', 400));
     }
 
     const isLecture = await Lecture.findOne({
-        where: {lecture_id}
+        where: { lecture_id }
     })
 
-    if(!isLecture){
+    if (!isLecture) {
         return next(new ErrorHandler('No lecture available', 400))
     }
 
@@ -328,6 +355,6 @@ exports.deleteLecture = catchAsyncError(async (req, res, next) =>{
 
     res.status(200).json({
         success: true,
-        message: 'Lecture deleted successfully!'    
+        message: 'Lecture deleted successfully!'
     })
 })
