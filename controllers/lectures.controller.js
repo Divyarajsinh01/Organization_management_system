@@ -136,7 +136,7 @@ exports.createLectures = catchAsyncError(async (req, res, next) => {
         subject_id
     });
 
-    res.status(201).json({
+    res.status(200).json({
         success: true,
         message: 'Lecture created successfully!',
         data: lecture
