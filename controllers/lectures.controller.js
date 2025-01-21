@@ -121,7 +121,7 @@ exports.createLectures = catchAsyncError(async (req, res, next) => {
 
 
     if (conflictLecture) {
-        return next(new ErrorHandler('Time conflict: Another lecture is already scheduled for this teacher at the specified time.', 409));
+        return next(new ErrorHandler('Time conflict: Another lecture is already scheduled for this teacher at the specified time.', 400));
     }
 
     // Create the lecture if no conflict
