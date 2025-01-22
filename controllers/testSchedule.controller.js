@@ -45,7 +45,7 @@ exports.scheduleTest = catchAsyncError(async (req, res, next) => {
 
     const startDate = moment(`${scheduleDate}`, "DD/MM/YYYY").format('YYYY-MM-DD');
     const startTimeOnly = moment(startTime, "hh:mm A").format("HH:mm:ss");    // "14:30:00" (string)
-    const endTimeOnly = moment(endTime, "hh:mm A").format("HH:mm:ss");    
+    const endTimeOnly = moment(endTime, "hh:mm A").format("HH:mm:ss");
     // const endTimeOnly = moment(startTime, "hh:mm A").add(durationInMinutes, "minutes").format("HH:mm:ss"); // "15:30:00" (string)
 
     // console.log(startDateTime)
@@ -130,11 +130,11 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
         options.batch_id = batch_id;
     }
 
-    if(subject_id){
+    if (subject_id) {
         options.subject_id = subject_id;
     }
 
-    if(date){
+    if (date) {
         options.date = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD')
     }
 
@@ -299,14 +299,15 @@ exports.updateTestsStatus = catchAsyncError(async (req, res, next) => {
 
     // If startDate and startTime are provided, validate and update the test's start and end time
     if (startDate && startTime) {
-        validateDate(startDate);
+        validateDate(startDate.trim());
         validateTime(startTime)
-        validateDate(endTime)
+        validateTime(endTime)
         // validateISCurrentDateAndTime(startDate, startTime);
 
-        const startDateOnly = moment(startDate, 'DD/MM/YYYY').format('YYYY-MM-DD')
+        const startDateOnly = moment(`${startDate}`, 'DD/MM/YYYY').format('YYYY-MM-DD')
         const startTimeOnly = moment(`${startTime}`, "hh:mm A").format('HH:mm:ss');
         const endTimeOnly = moment(endTime, "hh:mm A").format('HH:mm:ss');
+        
 
         // Check if any other test is already scheduled during the updated time
         const isTestConflict = await Test.findOne({
