@@ -515,7 +515,7 @@ exports.getTeacherList = catchAsyncError(async (req, res, next) => {
 })
 
 exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
-    const user_id = req.user.user_id
+    const user_id = req.user.user_id;
 
     const teacher = await Teacher.findOne({
         where: { user_id: user_id },
@@ -533,12 +533,10 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
                 ]
             }
         ]
-    })
-
-    // console.log(Object.getOwnPropertyNames(teacher.__proto__));
+    });
 
     if (!teacher) {
-        return next(new ErrorHandler('Teacher not found!', 400))
+        return next(new ErrorHandler('Teacher not found!', 400));
     }
 
     const responseData = {
@@ -547,7 +545,6 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
         name: teacher.user.name,
         email: teacher.user.email,
         profile_image: teacher.user.profile_image,
-        // password: randomPassword,
         login_id: teacher.user.login_id,
         mobileNo: teacher.user.mobileNo,
         mobileNo2: teacher.user.mobileNo2,
@@ -560,7 +557,9 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
     const standardsMap = {};
 
     teacher.teacherAssignments.forEach(assignment => {
-        const { standard, batch, subject } = assignment;
+        const standard = assignment.standard || { standard_id: null, standard: null };
+        const batch = assignment.batch || { batch_id: null, batch_name: null, batch_start_time: null, batch_end_time: null };
+        const subject = assignment.subject || { subject_id: null, subject_name: null };
 
         if (!standardsMap[standard.standard_id]) {
             standardsMap[standard.standard_id] = {
@@ -596,8 +595,9 @@ exports.getTeacherProfile = catchAsyncError(async (req, res, next) => {
         success: true,
         message: "Teacher profile fetched successfully",
         data: responseData
-    })
-})
+    });
+});
+
 
 exports.teacherUpdateByManager = catchAsyncError(async (req, res, next) => {
     const { teacher_id, addAssignments, removeAssignments } = req.body;
