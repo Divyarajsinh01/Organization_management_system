@@ -10,6 +10,7 @@ const { sendOTP } = require("../utils/smsUtility"); // Utility for sending OTPs 
 const ErrorHandler = require("../utils/errorHandler"); // Custom error handler utility
 const cloudinaryUpload = require("../utils/fileUploader");
 const sendEmail = require("../utils/sendEmail");
+const messaging = require("../firebaseConfig");
 
 // Controller for user login
 exports.loginUser = catchAsyncError(async (req, res, next) => {
@@ -237,3 +238,24 @@ exports.updateProfilePic = catchAsyncError(async (req, res, next) => {
         message: 'Profile updated successfully',
     })
 }) 
+
+// send test notification 
+
+const registrationToken = 'dt58DYD_TRWK_UICXrz232:APA91bFBBYxZeVDuTKMe0_ZiIxgMYl-a4Tt_QQFHy4rVxLSBsRo6yPhl6bQeUiVYE8srUQg_wFbfNkmnIsDUxYSVbfHEmCV8VYE0ntZ2FVGLjSYaXoIsuNo';
+
+exports.testPushNotification = catchAsyncError(async (req, res, next) => {
+    const message = {
+        notification: {
+            title: 'test notification',
+            body: 'this is test data from nodejs'
+        },
+        token: registrationToken
+      };
+      
+      // Send a message to the device corresponding to the provided
+      // registration token.
+    const messageData = await messaging.send(message)
+    res.status(200).json({
+        data: messageData
+    })
+})
