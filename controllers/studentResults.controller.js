@@ -496,10 +496,10 @@ exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
             notification_type_id: 3
         };
 
-        const pushNoifications = []
+        const pushNotifications = []
         if(student.user.usersFCMTokens.length > 0){
             student.user.usersFCMTokens.forEach((token) => {
-                pushNoifications.push(
+                pushNotifications.push(
                     sendPushNotification(
                         title,
                         message,
@@ -509,7 +509,7 @@ exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
             });
         }
 
-        await Promise.all(pushNoifications)
+        await Promise.all(pushNotifications)
 
         // You can save the notification here if required:
         await Notification.create(notification, { transaction });
