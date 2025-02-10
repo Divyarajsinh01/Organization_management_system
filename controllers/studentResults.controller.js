@@ -1,11 +1,11 @@
 const { where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { Student, StudentResult, Test, Sequelize, User, Subject, Standard, Batch, sequelize, Notification } = require("../models");
+const { Student, StudentResult, Test, Sequelize, User, Subject, Standard, Batch, sequelize, Notification, UserFCM } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const { validateDate } = require("../utils/validation");
 const { Op } = Sequelize;
 const moment = require('moment');
-const calculateOverAllPercentage = require("../utils/calculateOverAllPercentage");
+const sendPushNotification = require("../utils/sendPushNotification");
 
 // Function to calculate average marks for each student
 const calculateAverageMarks = (students) => {
@@ -51,7 +51,12 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
             const student = await Student.findOne({
                 where: { student_id },
                 include: [{
-                    model: User
+                    model: User,
+                    include: [
+                        {
+                            model: UserFCM
+                        }
+                    ]
                 }]
             }, { transaction });
             if (!student) {
@@ -122,6 +127,16 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
                     user_id: student.user.user_id,
                     notification_type_id: 3
                 });
+
+                if(student.user.usersFCMTokens.length > 0){
+                    const studentNotification = student.user.usersFCMTokens.map(t => sendPushNotification(`Marks Message!`,
+                        `Dear ${student.user.name}, you have scored ${obtained_marks} marks in ${test.subjects.subject_name} on ${test.date}. Keep up the good work!`,
+                        t.FCM_Token
+                    ))
+    
+                    await Promise.all(studentNotification)
+                }
+
             }
         }
 
@@ -149,7 +164,7 @@ exports.addStudentMarks = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
-    const { login_id, student_id, standard_id, batch_id, subject_ids, from_date, to_date, overAll } = req.body;
+    const { login_id, student_id, standard_id, batch_id, subject_ids, from_date, to_date } = req.body;
 
     validateDate(from_date);
     validateDate(to_date)
@@ -232,25 +247,12 @@ exports.getStudentMarks = catchAsyncError(async (req, res, next) => {
 
     const studentResultData = calculateAverageMarks(studentsWithMarks)
 
-    let overAllPercentage
-    if(overAll){
-        overAllPercentage = calculateOverAllPercentage(studentsWithMarks)
-    }
-
-    const responseData = {
+    // Send the aggregated data (total and average marks)
+    res.status(200).json({
         success: true,
         message: "Student marks fetched successfully!",
-        data: studentResultData,
-        // overAllPercentage : overAll ? overAllPercentage : null
-    }
-
-    // Add overAllPercentage inside the data object if it exists
-    if (overAllPercentage !== null) {
-        responseData.overAllPercentage = overAllPercentage;
-    }
-
-    // Send the aggregated data (total and average marks)
-    res.status(200).json(responseData);
+        data: studentResultData
+    });
 });
 
 exports.getTop10Students = catchAsyncError(async (req, res, next) => {
@@ -493,6 +495,21 @@ exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
             user_id: student.user.user_id,
             notification_type_id: 3
         };
+
+        const pushNoifications = []
+        if(student.user.usersFCMTokens.length > 0){
+            student.user.usersFCMTokens.forEach((token) => {
+                pushNoifications.push(
+                    sendPushNotification(
+                        title,
+                        message,
+                        token.FCM_Token
+                    )
+                );
+            });
+        }
+
+        await Promise.all(pushNoifications)
 
         // You can save the notification here if required:
         await Notification.create(notification, { transaction });

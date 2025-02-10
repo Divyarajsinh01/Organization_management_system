@@ -1,8 +1,9 @@
-const { StudentFees, StudentPayment, Student, User, Standard, Batch, sequelize, Notification, Installment } = require("../models");
+const { StudentFees, StudentPayment, Student, User, Standard, Batch, sequelize, Notification, Installment, UserFCM } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncError = require("../middlewares/catchAsyncError");
 const moment = require("moment");
 const { validateDate } = require("../utils/validation");
+const sendPushNotification = require("../utils/sendPushNotification");
 
 exports.studentPayFees = catchAsyncError(async (req, res, next) => {
     const { installment_id, student_id, payment_date, payment_amount, newDueDate } = req.body;
@@ -52,7 +53,7 @@ exports.studentPayFees = catchAsyncError(async (req, res, next) => {
         const paymentRecord = await StudentPayment.findOne({ where: { installment_id, student_id }, transaction })
 
         if (!paymentRecord) {
-            throw new ErrorHandler('no installment record found for student!',400)
+            throw new ErrorHandler('no installment record found for student!', 400)
         }
 
         if (paymentRecord.installment_status === "paid") {
@@ -126,15 +127,39 @@ exports.studentPayFees = catchAsyncError(async (req, res, next) => {
         await paymentRecord.save({ transaction });
         await studentFeesRecord.save({ transaction });
 
+        let adminNotifications
+
         if (user.role_id === 2) {
-            const superAdmin = await User.findAll({ where: { role_id: 1 }, transaction });
+            const superAdmin = await User.findAll({
+                where: { role_id: 1 },
+                include: [
+                    {
+                        model: UserFCM
+                    }
+                ],
+                transaction
+            });
             const notifications = superAdmin.map(admin => ({
                 user_id: admin.user_id,
                 notification_type_id: 4,
                 title: "Payment notification",
-                message: `Payment received: ${user.name} collected ₹${payment_amount} from ${isStudent.user.name} (Standard: ${isStudent.standard.standard}, Batch: ${isStudent.batch.name}). Payment Date: ${formattedPaymentDate}.`,
+                message: `Payment received: ${user.name} collected ₹${payment_amount} from ${isStudent.user.name} (Standard: ${isStudent.standard.standard}, Batch: ${isStudent.batch.batch_name}). Payment Date: ${formattedPaymentDate}.`,
             }));
-            
+
+            adminNotifications = superAdmin.map(async u => {
+                const tokens = u.usersFCMTokens.map(t => t.FCM_Token)
+                const title = "Payment notification"
+                const message = `Payment received: ${user.name} collected ₹${payment_amount} from ${isStudent.user.name} (Standard: ${isStudent.standard.standard}, Batch: ${isStudent.batch.batch_name}). Payment Date: ${formattedPaymentDate}.`
+
+                // Map over the tokens and return the promises for sending notifications
+                const sendPromises = tokens.map(token => sendPushNotification(title, message, token));
+
+                // Wait for all promises to resolve for each user
+                await Promise.all(sendPromises);
+            })
+
+            await Promise.all(adminNotifications)
+
             await Notification.bulkCreate(notifications, { transaction });
         }
 

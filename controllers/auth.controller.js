@@ -259,3 +259,27 @@ exports.testPushNotification = catchAsyncError(async (req, res, next) => {
         data: messageData
     })
 })
+
+exports.saveUserFCMTokens = catchAsyncError(async (req, res, next) => {
+    const user_id = req.user.user_id
+
+    const {fcm_token} = req.body
+
+    const isToken = await db.UserFCM.findOne({where: {user_id}})
+
+    if(isToken){
+        await isToken.update({
+            FCM_Token: fcm_token
+        })
+    }else{
+        await db.UserFCM.create({
+            user_id,
+            FCM_Token: fcm_token
+        })
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'User FCM Token Store successfully!',
+    })
+})

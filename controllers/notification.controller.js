@@ -1,7 +1,8 @@
 const { where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { Standard, Batch, Student, User, NotificationType, Notification, Test, StudentResult, Subject, sequelize, StudentAttendance } = require("../models");
+const { Standard, Batch, Student, User, NotificationType, Notification, Test, StudentResult, Subject, sequelize, StudentAttendance, UserFCM } = require("../models");
 const ErrorHandler = require("../utils/errorHandler");
+const sendPushNotification = require("../utils/sendPushNotification");
 
 exports.addNotificationTypes = catchAsyncError(async (req, res, next) => {
     const { notification_type } = req.body;
@@ -50,6 +51,7 @@ exports.CreateSimpleMessage = catchAsyncError(async (req, res, next) => {
     }
 
     const userMessages = [];
+    const pushNotificationPromises = [];
 
     // Process standards and batches in bulk
     for (let standard of standardData) {
@@ -89,6 +91,11 @@ exports.CreateSimpleMessage = catchAsyncError(async (req, res, next) => {
                 {
                     model: User, // Include associated user data
                     attributes: ["user_id"], // Fetch only required user fields
+                    include: [
+                        {
+                            model: UserFCM
+                        }
+                    ]
                 },
             ],
         });
@@ -107,10 +114,24 @@ exports.CreateSimpleMessage = catchAsyncError(async (req, res, next) => {
                     notification_type_id: 1
                 });
             }
+
+            //If FCM_Token exists and is an array, send push notifications to each token
+            if (Array.isArray(student.user.usersFCMTokens) && student.user.usersFCMTokens.length > 0) {
+                student.user.usersFCMTokens.forEach((token) => {
+                    pushNotificationPromises.push(
+                        sendPushNotification(
+                            title,
+                            message,
+                            token.FCM_Token
+                        )
+                    );
+                });
+            }
         });
     }
 
     const notification = await Notification.bulkCreate(userMessages)
+    await Promise.all(pushNotificationPromises)
 
     // Simulate message sending or save to DB
     // console.log("Prepared Messages: ", userMessages);
@@ -142,7 +163,8 @@ exports.createMarksMessage = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('User data is required.', 400));
     }
 
-    const userMessages = []
+    const userMessages = [];
+    const userPushNotification = []
     const transaction = await sequelize.transaction();
 
     try {
@@ -154,6 +176,11 @@ exports.createMarksMessage = catchAsyncError(async (req, res, next) => {
                 include: [
                     {
                         model: User,
+                        include: [
+                            {
+                                model: UserFCM
+                            }
+                        ]
                     },
                     {
                         model: StudentResult,
@@ -193,9 +220,23 @@ exports.createMarksMessage = catchAsyncError(async (req, res, next) => {
                 user_id: student.user.user_id,
                 notification_type_id: 3
             })
+
+            //If FCM_Token exists and is an array, send push notifications to each token
+            if (Array.isArray(student.user.usersFCMTokens) && student.user.usersFCMTokens.length > 0) {
+                student.user.usersFCMTokens.forEach((token) => {
+                    userPushNotification.push(
+                        sendPushNotification(
+                            `Marks Message!`,
+                            `Dear ${student.user.name}, you have scored ${mark} marks in ${subject} on ${date}. Keep up the good work!`,
+                            token.FCM_Token
+                        )
+                    );
+                });
+            }
         }
 
         await Notification.bulkCreate(userMessages, { transaction })
+        await Promise.all(userPushNotification)
         await Test.update({
             isNotificationSent: true,
         }, { where: { test_id }, transaction })
@@ -215,7 +256,8 @@ exports.createMarksMessage = catchAsyncError(async (req, res, next) => {
 
 exports.createAttendanceMessage = catchAsyncError(async (req, res, next) => {
     const { userData } = req.body;
-    const userMessages = []
+    const userMessages = [];
+    const userPushNotification = []
     const transaction = await sequelize.transaction();
     try {
         for (const user of userData) {
@@ -235,6 +277,11 @@ exports.createAttendanceMessage = catchAsyncError(async (req, res, next) => {
                     include: [
                         {
                             model: User,
+                            include: [
+                                {
+                                    model: UserFCM
+                                }
+                            ]
                         }
                     ]
                 }],
@@ -274,10 +321,24 @@ exports.createAttendanceMessage = catchAsyncError(async (req, res, next) => {
                 notification_type_id: 2
             })
 
+            //If FCM_Token exists and is an array, send push notifications to each token
+            if (Array.isArray(student.user.usersFCMTokens) && student.user.usersFCMTokens.length > 0) {
+                student.user.usersFCMTokens.forEach((token) => {
+                    userPushNotification.push(
+                        sendPushNotification(
+                            `Attendance Message!`,
+                            `Dear student ${name}, you are absent on ${date}!`,
+                            token.FCM_Token
+                        )
+                    );
+                });
+            }
+
             await studentAttendance.update({ isNotificationSent: true }, { transaction })
         }
 
         await Notification.bulkCreate(userMessages, { transaction })
+        await Promise.all(userPushNotification)
         await transaction.commit()
         res.status(200).json({
             success: true,

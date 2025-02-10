@@ -1,11 +1,12 @@
 const { Op, where } = require("sequelize");
 const catchAsyncError = require("../middlewares/catchAsyncError");
-const { Holiday, StudentAttendance, Student, Standard, Batch, User, sequelize, Notification } = require("../models");
+const { Holiday, StudentAttendance, Student, Standard, Batch, User, sequelize, Notification, UserFCM } = require("../models");
 const moment = require('moment');
 const ErrorHandler = require("../utils/errorHandler");
 const { validateDate } = require("../utils/validation");
 const calculateHolidayDays = require("../utils/calculateHolidayDays");
 const calculateStudyDays = require("../utils/studyDaysCount");
+const sendPushNotification = require("../utils/sendPushNotification");
 
 exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
     const { attendanceRecords, isNotify } = req.body; // Expecting an array of attendance records
@@ -47,7 +48,12 @@ exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
             const student = await Student.findOne({
                 where: { student_id },
                 include: [{
-                    model: User
+                    model: User,
+                    include: [
+                        {
+                            model: UserFCM
+                        }
+                    ]
                 }]
             }, { transaction });
 
@@ -84,6 +90,15 @@ exports.createStudentAttendance = catchAsyncError(async (req, res, next) => {
                     user_id: student.user.user_id,
                     notification_type_id: 3
                 });
+
+                if(student.user.usersFCMTokens.length > 0){
+                    const notifictions = student.user.usersFCMTokens.map(t => sendPushNotification(`Attendance Message!`,
+                        `Dear ${student.user.name}, you are absent on ${date}!`,
+                        t.FCM_Token
+                    ))
+
+                    await Promise.all(notifictions)
+                }
 
                 // Update the attendance record to mark notification as sent
                 await createdAttendance.update({ isNotificationSent: true }, { transaction });
