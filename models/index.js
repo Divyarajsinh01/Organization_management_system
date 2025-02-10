@@ -1,5 +1,6 @@
 const sequelize = require('../config/dbConnect');
 const { Sequelize } = require('sequelize');
+const userFCMModel = require('./userFCM.model');
 
 const db = {}
 
@@ -30,6 +31,7 @@ db.NotificationType = require('./notificationType.model')(sequelize, Sequelize)
 db.Notification = require('./notification.model')(sequelize, Sequelize)
 db.SuperAdmin = require('./superAdmin.model')(sequelize, Sequelize)
 db.Installment = require('./installment.model')(sequelize, Sequelize)
+db.UserFCM = userFCMModel(sequelize, Sequelize)
 
 // Define one-to-many associations between user and userRoles model
 db.UserRole.hasMany(db.User, { foreignKey: 'role_id' })
@@ -427,6 +429,20 @@ db.StudentPayment.belongsTo(db.Student, {
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE'
 })
+
+//user and userFCM tokens 
+db.User.hasMany(db.UserFCM, {
+    foreignKey: 'user_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
+db.UserFCM.belongsTo(db.User, {
+    foreignKey: 'user_id',
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE'
+})
+
 
 // sequelize.sync({alter: true})
 
