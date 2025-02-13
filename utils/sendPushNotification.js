@@ -16,7 +16,8 @@ const sendPushNotification = async (title, body, token) => {
 
         return messageData
     } catch (error) {
-        throw error
+        // throw error
+        return;
     }
 }
 
