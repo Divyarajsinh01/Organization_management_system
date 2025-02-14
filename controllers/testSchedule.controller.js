@@ -266,7 +266,7 @@ exports.getListOfScheduleTest = catchAsyncError(async (req, res, next) => {
 });
 
 exports.updateTestsStatus = catchAsyncError(async (req, res, next) => {
-    const { test_id, startDate, startTime, endTime, status } = req.body;
+    const { test_id, startDate, startTime, endTime, status, description, topic } = req.body;
 
     if (!test_id) {
         return next(new ErrorHandler('Please provide test id for update record!', 400));
@@ -357,6 +357,14 @@ exports.updateTestsStatus = catchAsyncError(async (req, res, next) => {
         isTest.date = startDateOnly;   // Update the test's start time
         isTest.startTime = startTimeOnly
         isTest.endTime = endTimeOnly;  // Update the test's end time
+    }
+
+    if(description){
+        isTest.description = description;
+    }
+
+    if(topic){
+        isTest.topic = topic;
     }
 
     // // If duration is updated, ensure the test's end time reflects this change
