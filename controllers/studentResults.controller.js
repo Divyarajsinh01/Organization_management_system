@@ -445,7 +445,13 @@ exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
         // Find the student record
         const student = await Student.findOne({
             where: { student_id },
-            include: [{ model: User }],
+            include: [{ model: User ,
+                include: [
+                    {
+                        model: UserFCM
+                    }
+                ]
+            }],
             transaction // Include transaction to lock the query
         });
         if (!student) {
@@ -497,19 +503,21 @@ exports.updateStudentMarks = catchAsyncError(async (req, res, next) => {
         };
 
         const pushNotifications = []
-        if(student.user.usersFCMTokens.length > 0){
+        if(student.user.usersFCMTokens.length){
+            // console.log(student.user.usersFCMTokens);
+            
             student.user.usersFCMTokens.forEach((token) => {
                 pushNotifications.push(
                     sendPushNotification(
-                        title,
-                        message,
+                        `Mark updated Message!`,
+                        `Dear ${student.user.name}, your marks for the test held on ${test.date} in ${test.subjects.subject_name} have been updated to ${obtained_marks}. Keep up the good work!`,
                         token.FCM_Token
                     )
                 );
             });
         }
 
-        await Promise.all(pushNotifications)
+        // await Promise.all(pushNotifications)
 
         // You can save the notification here if required:
         await Notification.create(notification, { transaction });
