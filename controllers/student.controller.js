@@ -6,10 +6,11 @@ const { generateRandomPassword } = require("../utils/generateRandomPassword");
 const generateLoginIdWithRandom = require("../utils/randomLoginIdGenerate");
 const { validateDate } = require("../utils/validation");
 const moment = require('moment')
+const ExcelJS = require('exceljs');
 
 exports.createStudents = catchAsyncError(async (req, res, next) => {
     //request body
-    const { name, email, mobileNo, address, mobileNo2,DOB, gender, standard_id, batch_id, organization_id, wantToProcess } = req.body;
+    const { name, email, mobileNo, address, mobileNo2, DOB, gender, standard_id, batch_id, organization_id, wantToProcess } = req.body;
 
     // validation for all fields
     if (!name || !email || !mobileNo || !address || !standard_id || !gender || !batch_id || !organization_id || !DOB) {
@@ -63,7 +64,7 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
             email,
             mobileNo,
             mobileNo2: mobileNo2 || null,
-            gender, 
+            gender,
             password: 'Student@123', // default password
             login_id,
             address,
@@ -102,10 +103,10 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
             organization_id
         }, { transaction })
 
-        const standardFees = await StandardFees.findOne({where: {standard_id}, transaction})
+        const standardFees = await StandardFees.findOne({ where: { standard_id }, transaction })
 
-        if(standardFees){
-            const installments = await Installment.findAll({where: {fees_id: standardFees.fees_id}, transaction})
+        if (standardFees) {
+            const installments = await Installment.findAll({ where: { fees_id: standardFees.fees_id }, transaction })
 
             const studentFees = {
                 fees_id: standardFees.fees_id,
@@ -126,7 +127,7 @@ exports.createStudents = catchAsyncError(async (req, res, next) => {
         await transaction.commit()
         const studentData = await User.findOne({
             where: { user_id: user.user_id },
-            attributes: {exclude : ['password']},
+            attributes: { exclude: ['password'] },
             include: [
                 {
                     model: UserRole,
@@ -341,5 +342,144 @@ exports.updateStudents = catchAsyncError(async (req, res, next) => {
     } catch (error) {
         await transaction.rollback()
         return next(new ErrorHandler(error.message, 500))
+    }
+})
+
+
+exports.downloadExcelDemoForStudent = catchAsyncError(async (req, res, next) => {
+    const studentSampleData = [
+        {
+            "name": "John Doe",
+            "email": "johndoe@gmail.com",
+            "mobileNo": "9889998877",
+            "gender": "Male",
+            "DOB": "01/01/2000",
+            "address": "Test Address"
+        },
+        {
+            "name": "Jane Smith",
+            "email": "janesmith@gmail.com",
+            "mobileNo": "9778889990",
+            "gender": "Female",
+            "DOB": "02/02/1999",
+            "address": "Another Test Address"
+        }
+    ];
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Student Sample Data');
+
+    // Add Header Row (Bold & Styled)
+    worksheet.columns = [
+        { header: 'Name', key: 'name', width: 20 },
+        { header: 'Email', key: 'email', width: 25 },
+        { header: 'Mobile No', key: 'mobileNo', width: 15 },
+        { header: 'Gender', key: 'gender', width: 10 },
+        { header: 'DOB', key: 'DOB', width: 15 },
+        { header: 'Address', key: 'address', width: 30 }
+    ];
+
+    // Making header bold
+    worksheet.getRow(1).font = { bold: true };
+
+    // Add Data Rows
+    studentSampleData.forEach(student => {
+        worksheet.addRow(student);
+    });
+
+    // Set response headers for file download
+    res.setHeader(
+        "Content-Disposition",
+        "attachment; filename=student_sample_data.xlsx"
+    );
+
+    res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // // Send file buffer as response
+    await workbook.xlsx.write(res);
+    res.end();
+});
+
+exports.importStudentDataFile = catchAsyncError(async (req, res, next) => {
+    const file = req.file;
+    const { standard_id, batch_id, organization_id } = req.body
+    if (!standard_id || !batch_id || !organization_id) return next(new ErrorHandler("Please provide standard, batch, and organization", 400));
+
+    const role_id = 4; // student role id
+
+    // role validation
+    const role = await UserRole.findOne({ where: { role_id } });
+    if (!role) return next(new ErrorHandler("Role not found", 404));
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(req.file.buffer);
+    const worksheet = workbook.worksheets[0];
+
+    const studentData = []
+    worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return; // Skip header row
+        const [name, email, mobileNo, gender, DOB, address] = row.values.slice(1)
+        // Extract the email text if it's an object (hyperlink format)
+        const emailText = typeof email === 'object' && email.text ? email.text : email;
+        // Log data to inspect their types
+        // console.log({ name, email: emailText, mobileNo, gender, DOB, address });
+        studentData.push({ name, email: emailText, mobileNo: mobileNo.toString(), gender, DOB, address })
+    })
+
+    const transaction = await sequelize.transaction()
+    try {
+        for (const student of studentData) {
+            const login_id = await generateLoginIdWithRandom(role.role, User)
+            const { name, email, mobileNo, gender, DOB, address } = student
+            const user = await User.create({
+                name,
+                email,
+                mobileNo,
+                gender,
+                password: 'Student@123', // default password
+                login_id,
+                address,
+                role_id
+            }, { transaction })
+
+            const DOBFormate = moment(`${DOB}`, "DD/MM/YYYY").format('YYYY-MM-DD');
+
+            const createdStudent = await Student.create({
+                user_id: user.user_id,
+                standard_id,
+                batch_id,
+                DOB: DOBFormate,
+                organization_id
+            }, { transaction })
+
+            const standardFees = await StandardFees.findOne({ where: { standard_id }, transaction })
+
+            if (standardFees) {
+                const installments = await Installment.findAll({ where: { fees_id: standardFees.fees_id }, transaction })
+
+                const studentFees = {
+                    fees_id: standardFees.fees_id,
+                    student_id: createdStudent.student_id,
+                    pending_fees: standardFees.fees,
+                }
+
+                const studentInstallments = installments.map(installment => ({
+                    installment_id: installment.installment_id,
+                    student_id: createdStudent.student_id,
+                }));
+
+                await StudentFees.create(studentFees, { transaction });
+
+                await StudentPayment.bulkCreate(studentInstallments, { transaction });
+            }
+        }
+        await transaction.commit();
+        res.status(200).json({ success: true, message: "Students created successfully" });
+    } catch (error) {
+        await transaction.rollback();
+        return next(new ErrorHandler(error.message, 400))
     }
 })
