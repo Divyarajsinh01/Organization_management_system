@@ -1,7 +1,7 @@
 const express = require('express')
 const authMiddleware = require('../middlewares/authMiddleware')
 const { roleRestrict } = require('../middlewares/roleRestrict')
-const { createStudents, getStudentProfile, getStudentList, updateStudents } = require('../controllers/student.controller')
+const { createStudents, getStudentProfile, getStudentList, updateStudents, downloadExcelDemoForStudent, importStudentDataFile } = require('../controllers/student.controller')
 
 const router = express.Router()
 
