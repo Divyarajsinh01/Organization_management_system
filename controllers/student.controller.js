@@ -408,6 +408,11 @@ exports.importStudentDataFile = catchAsyncError(async (req, res, next) => {
     const { standard_id, batch_id, organization_id } = req.body
     if (!standard_id || !batch_id || !organization_id) return next(new ErrorHandler("Please provide standard, batch, and organization", 400));
 
+    // Validate the file type (Excel file)
+    if (!file || !file.originalname.match(/\.(xlsx|xls)$/)) {
+        return next(new ErrorHandler("Please upload a valid Excel file (.xlsx or .xls)", 400));
+    }
+
     const role_id = 4; // student role id
 
     // role validation
@@ -419,15 +424,29 @@ exports.importStudentDataFile = catchAsyncError(async (req, res, next) => {
     const worksheet = workbook.worksheets[0];
 
     const studentData = []
+    const errors = [];
+
     worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header row
         const [name, email, mobileNo, gender, DOB, address] = row.values.slice(1)
+
+        // Validate required fields
+        if (!name || !email || !mobileNo || !DOB || !address) {
+            errors.push(`Missing filed at row ${rowNumber}`);
+        }
+
+        validateDate(DOB)
+
         // Extract the email text if it's an object (hyperlink format)
         const emailText = typeof email === 'object' && email.text ? email.text : email;
         // Log data to inspect their types
         // console.log({ name, email: emailText, mobileNo, gender, DOB, address });
         studentData.push({ name, email: emailText, mobileNo: mobileNo.toString(), gender, DOB, address })
     })
+
+    if (errors.length > 0) {
+        return next(new ErrorHandler(errors.join(" | "), 400));
+    }
 
     const transaction = await sequelize.transaction()
     try {
