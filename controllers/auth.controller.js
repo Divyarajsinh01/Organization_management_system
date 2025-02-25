@@ -342,17 +342,39 @@ exports.enableUser = catchAsyncError(async (req, res, next) => {
     });
 })
 
-// exports.deleteUser = catchAsyncError(async (req, res, next) => {
-//     const { user_id } = req.body
+exports.deleteUser = catchAsyncError(async (req, res, next) => {
+    const { user_id } = req.body
 
-//     const user = await db.User.findOne({ where: { user_id } })
-//     if (!user) {
-//         return next(new ErrorHandler('User not found', 400))
-//     }
+    const user = await db.User.findOne({ where: { user_id } })
+    if (!user) {
+        return next(new ErrorHandler('User not found', 400))
+    }
     
-//     // Check if the user role base 
+    // Check if the user role base 
 
-//     const role_id = user.role_id
+    const role_id = user.role_id
 
+    switch (role_id) {
+        case 1:
+            await db.SuperAdmin.destroy({ where: { user_id } })
+            break;
+        case 2:
+            await db.Manager.destroy({ where: { user_id } })
+            break;
+        case 3:
+            await db.Teacher.destroy({ where: { user_id } })
+            break;
+        case 4:
+            await db.Student.destroy({ where: { user_id } })
+            break;
+        default:
+            break;
+    }
 
-// })
+    await user.destroy()
+    // Send success response
+    res.status(200).json({
+        success: true,
+        message: 'User deleted successfully!',
+    })
+})

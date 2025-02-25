@@ -1,5 +1,5 @@
 const express = require('express')
-const { loginUser, logoutUser, changePassword, sendForgotPasswordOtp, verifyOTP, resetLoginPassword, updateProfile, updateProfilePic, testPushNotification, saveUserFCMTokens, disableUser, enableUser } = require('../controllers/auth.controller')
+const { loginUser, logoutUser, changePassword, sendForgotPasswordOtp, verifyOTP, resetLoginPassword, updateProfile, updateProfilePic, testPushNotification, saveUserFCMTokens, disableUser, enableUser, deleteUser } = require('../controllers/auth.controller')
 const authMiddleware = require('../middlewares/authMiddleware')
 const { upload } = require('../middlewares/multerMiddleware')
 const { roleRestrict } = require('../middlewares/roleRestrict')
@@ -17,5 +17,6 @@ router.route('/test/message').get(testPushNotification)
 router.route('/set/user/fcm/token').post(authMiddleware, saveUserFCMTokens)
 router.route('/disabled/user').post(authMiddleware, roleRestrict(1,2), disableUser)
 router.route('/unable/user').post(authMiddleware, roleRestrict(1,2), enableUser)
+router.route('/delete/user').post(authMiddleware, roleRestrict(1,2), deleteUser)
 
 module.exports = router
