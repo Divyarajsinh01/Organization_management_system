@@ -26,6 +26,10 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('You are not registered!', 404)); // Return error if user not found
     }
 
+    if(user.is_disabled){
+        return next(new ErrorHandler('Your account is disabled. Please contact support', 401));
+    }
+
     // Verify the provided password
     const isPasswordValid = await verifyHashPassword(password, user.password);
     if (!isPasswordValid) {
@@ -237,11 +241,11 @@ exports.updateProfilePic = catchAsyncError(async (req, res, next) => {
         success: true,
         message: 'Profile updated successfully',
     })
-}) 
+})
 
 // send test notification 
 
-const registrationToken = 'dt58DYD_TRWK_UICXrz232:APA91bFBBYxZeVDuTKMe0_ZiIxgMYl-a4Tt_QQFHy4rVxLSBsRo6yPhl6bQeUiVYE8srUQg_wFbfNkmnIsDUxYSVbfHEmCV8VYE0ntZ2FVGLjSYaXoIsuNo';
+const registrationToken = 'eCzc85C4SvKHwDqh8o_6XG:APA91bEVAwPNBaza8RY4FBN6fGKic9QhPoG1sx4RSRylIsAXgmr0Si-q37Fgy7XksaNl50aWBHh3Zhm7YUIWAx3x-yf_G2HCCjOFNnEYP3BBJQi8RTGGfKE';
 
 exports.testPushNotification = catchAsyncError(async (req, res, next) => {
     const message = {
@@ -251,7 +255,7 @@ exports.testPushNotification = catchAsyncError(async (req, res, next) => {
         },
         token: registrationToken
       };
-      
+
       // Send a message to the device corresponding to the provided
       // registration token.
     const messageData = await messaging.send(message)
@@ -263,15 +267,15 @@ exports.testPushNotification = catchAsyncError(async (req, res, next) => {
 exports.saveUserFCMTokens = catchAsyncError(async (req, res, next) => {
     const user_id = req.user.user_id
 
-    const {fcm_token} = req.body
+    const { fcm_token } = req.body
 
-    const isToken = await db.UserFCM.findOne({where: {user_id}})
+    const isToken = await db.UserFCM.findOne({ where: { user_id } })
 
-    if(isToken){
+    if (isToken) {
         await isToken.update({
             FCM_Token: fcm_token
         })
-    }else{
+    } else {
         await db.UserFCM.create({
             user_id,
             FCM_Token: fcm_token
@@ -283,3 +287,72 @@ exports.saveUserFCMTokens = catchAsyncError(async (req, res, next) => {
         message: 'User FCM Token Store successfully!',
     })
 })
+
+// user disabled...
+
+exports.disableUser = catchAsyncError(async (req, res, next) => {
+    const { user_id } = req.body
+    const user = await db.User.findOne({ where: { user_id } })
+    if (!user) {
+        return next(new ErrorHandler('User not found', 400))
+    }
+
+    // Check if the user is already disabled
+    if (user.is_disabled) {
+        return next(new ErrorHandler("User is already disabled.", 400));
+    }
+
+    // Disable the user
+    await user.update({
+        is_disabled: true
+    });
+
+    // destroy all login session
+
+    await LoginToken.destroy({ where: { user_id } })
+
+    // Send success response
+    res.status(200).json({
+        success: true,
+        message: 'User disabled successfully!',
+    });
+})
+
+// unable user to login
+
+exports.enableUser = catchAsyncError(async (req, res, next) => {
+    const { user_id } = req.body
+
+    const user = await db.User.findOne({ where: { user_id } })
+    if (!user) {
+        return next(new ErrorHandler('User not found', 400))
+    }
+    // Check if the user is already enabled
+    if (!user.is_disabled) {
+        return next(new ErrorHandler("User is already enabled.", 400));
+    }
+    // Enable the user
+    await user.update({
+        is_disabled: false
+    });
+    // Send success response
+    res.status(200).json({
+        success: true,
+        message: 'User enabled successfully!',
+    });
+})
+
+// exports.deleteUser = catchAsyncError(async (req, res, next) => {
+//     const { user_id } = req.body
+
+//     const user = await db.User.findOne({ where: { user_id } })
+//     if (!user) {
+//         return next(new ErrorHandler('User not found', 400))
+//     }
+    
+//     // Check if the user role base 
+
+//     const role_id = user.role_id
+
+
+// })

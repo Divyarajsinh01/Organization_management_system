@@ -43,6 +43,10 @@ module.exports = (sequelize, Sequelize) => {
         address: {
             type: Sequelize.STRING,
         },
+        is_disabled: {
+            type: Sequelize.BOOLEAN,
+            defaultValue: false
+        },
         role_id: {
             type: Sequelize.INTEGER,
             references: {

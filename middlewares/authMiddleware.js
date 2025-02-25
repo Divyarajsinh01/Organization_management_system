@@ -33,6 +33,10 @@ module.exports = catchAsyncError(async (req, res, next) => {
             return next(new ErrorHandler('Access Denied! You are not register. Please register first!', 401));
         }
 
+        if(user.is_disabled){
+            return next(new ErrorHandler('Your account is disabled. Please contact support', 401));
+        }
+
         const authToken = await LoginToken.findOne({ where: { token, user_id: user.user_id } })
         if (!authToken) {
             return next(new ErrorHandler('Authentication token is invalid or expired', 401));
