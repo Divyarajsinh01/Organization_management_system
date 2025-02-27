@@ -26,7 +26,7 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('You are not registered!', 404)); // Return error if user not found
     }
 
-    if(user.is_disabled){
+    if (user.is_disabled) {
         return next(new ErrorHandler('Your account is disabled. Please contact support', 401));
     }
 
@@ -36,21 +36,42 @@ exports.loginUser = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('Invalid password!', 400)); // Return error if password is incorrect
     }
 
+
+    // USER CAN LOGIN MAXIMUM 1 DEVICE AT TIME
+
     // Check for existing login token for the user
-    const isLoginToken = await LoginToken.findOne({ where: { user_id: user.user_id } });
+    // const isLoginToken = await LoginToken.findOne({ where: { user_id: user.user_id } });
+    // Generate a new token for the user
+    // const token = generateToken({ id: user.user_id });
+
+    // Create a new login token or update the existing one
+    // if (!isLoginToken) {
+    //     await LoginToken.create({
+    //         user_id: user.user_id,
+    //         token
+    //     });
+    // } else {
+    //     isLoginToken.token = token; // Update the existing token
+    //     await isLoginToken.save();
+    // }
+
+    // USER CAN LOGIN MAXIMUM TWO DEVICE AT TIME
+
+    // Check for existing login token for the user
+    const loginTokens = await LoginToken.count({ where: { user_id: user.user_id } });
+
+    if (loginTokens >= 2) {
+        return next(new ErrorHandler('You have reached the maximum number of devices allowed for login. Please log out from another device or contact support for assistance.', 400));
+    }
+
     // Generate a new token for the user
     const token = generateToken({ id: user.user_id });
 
-    // Create a new login token or update the existing one
-    if (!isLoginToken) {
-        await LoginToken.create({
-            user_id: user.user_id,
-            token
-        });
-    } else {
-        isLoginToken.token = token; // Update the existing token
-        await isLoginToken.save();
-    }
+    // Create a new login token
+    await LoginToken.create({
+        user_id: user.user_id,
+        token
+    });
 
     // Remove sensitive user information before sending the response
     const superAdmin = removeSensitiveInfo(user);
@@ -254,10 +275,10 @@ exports.testPushNotification = catchAsyncError(async (req, res, next) => {
             body: 'this is test data from nodejs'
         },
         token: registrationToken
-      };
+    };
 
-      // Send a message to the device corresponding to the provided
-      // registration token.
+    // Send a message to the device corresponding to the provided
+    // registration token.
     const messageData = await messaging.send(message)
     res.status(200).json({
         data: messageData
@@ -349,7 +370,7 @@ exports.deleteUser = catchAsyncError(async (req, res, next) => {
     if (!user) {
         return next(new ErrorHandler('User not found', 400))
     }
-    
+
     // Check if the user role base 
 
     const role_id = user.role_id
