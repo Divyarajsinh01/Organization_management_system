@@ -140,8 +140,12 @@ exports.sendForgotPasswordOtp = catchAsyncError(async (req, res, next) => {
         return next(new ErrorHandler('login_id is required!', 400)); // Return error if missing
     }
 
-    if (!mobileNo && !email) {
-        return next(new ErrorHandler('Either mobileNo or email is required!', 400)); // Return error
+    // if (!mobileNo && !email) {
+    //     return next(new ErrorHandler('Either mobileNo or email is required!', 400)); // Return error
+    // }
+
+    if(!email){
+        return next(new ErrorHandler('Email is required!', 400)); // Return error
     }
 
     // Find user based on mobile number
@@ -151,9 +155,9 @@ exports.sendForgotPasswordOtp = catchAsyncError(async (req, res, next) => {
     }
 
     // If mobileNo is provided, validate it
-    if (mobileNo && user.mobileNo !== mobileNo) {
-        return next(new ErrorHandler('Mobile number you provided is not valid or incorrect!', 404)); // Mobile number mismatch
-    }
+    // if (mobileNo && user.mobileNo !== mobileNo) {
+    //     return next(new ErrorHandler('Mobile number you provided is not valid or incorrect!', 404)); // Mobile number mismatch
+    // }
 
     // If email is provided, validate it
     if (email && user.email !== email) {
@@ -164,9 +168,9 @@ exports.sendForgotPasswordOtp = catchAsyncError(async (req, res, next) => {
     const otp = generateOTP(1000, 9999);
     const token = generateToken({ id: user.user_id, otp }, '5m'); // Token expires in 5 minutes
 
-    if (mobileNo) {
-        await sendOTP(otp, mobileNo); // Send the OTP via SMS
-    }
+    // if (mobileNo) {
+    //     await sendOTP(otp, mobileNo); // Send the OTP via SMS
+    // }
 
     if (email) {
         await sendEmail(email, 'Your Forgot Password OTP', `Your OTP is ${otp}`); // Send the OTP via email
